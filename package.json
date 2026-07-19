@@ -1,0 +1,16 @@
+{
+  "name": "pickleplay",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "scripts": {
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:web": "npm --workspace apps/web run dev",
+    "test:engine": "npm --workspace packages/engine test",
+    "db:push": "npm --workspace packages/db run db:push",
+    "db:seed": "npm --workspace packages/db run db:seed"
+  }
+}

@@ -1,0 +1,239 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PLAYER
+  HOST
+  ADMIN
+}
+
+enum SessionStatus {
+  SCHEDULED
+  OPEN
+  LIVE
+  CLOSED
+}
+
+enum SignupStatus {
+  SIGNED_UP
+  WAITLISTED
+  CHECKED_IN
+  NO_SHOW
+  CANCELLED
+}
+
+enum GameStatus {
+  PENDING
+  LIVE
+  REPORTED
+  FINAL
+  VOID
+}
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         Role         @default(PLAYER)
+  rating       Float        @default(3.0)
+  avatarUrl    String?      // small data-URL photo (client-downscaled)
+  strikes      Int          @default(0)
+  createdAt    DateTime     @default(now())
+  signups      Signup[]
+  gamePlayers  GamePlayer[]
+  memberships  Membership[]
+  payments     Payment[]
+}
+
+model Court {
+  id       String        @id @default(cuid())
+  number   Int           @unique
+  label    String        @default("")
+  isActive Boolean       @default(true)
+  sessions SessionCourt[]
+  games    Game[]
+}
+
+model OpenSession {
+  id           String        @id @default(cuid())
+  title        String        @default("Open Play")
+  description  String        @default("")
+  organizer    String        @default("")
+  createdById  String?       // owning organizer — only they (or an admin) can manage it
+  priceCents   Int           @default(0) // per-player fee, displayed on the event card
+  startsAt     DateTime
+  endsAt       DateTime
+  capacity     Int           @default(24)
+  status       SessionStatus @default(SCHEDULED)
+  graceMinutes Int           @default(15)
+  lateProratedAfterMin Int   @default(60)
+  engineState  String?       // serialized RotationEngine + rng counter (crash recovery)
+  qrToken      String?       @unique // self check-in QR (generated at session start)
+  seed         String?       // secret RNG seed (revealed at close — commit–reveal audit)
+  seedHash     String?       // sha256(seed), published at session start
+  tierMin      Float?        // rating band (null = open session)
+  tierMax      Float?
+  config       Json          @default("{}")
+  courts       SessionCourt[]
+  signups      Signup[]
+  games        Game[]
+  auditEvents  AuditEvent[]
+  payments     Payment[]
+}
+
+model SessionCourt {
+  sessionId String
+  courtId   String
+  session   OpenSession @relation(fields: [sessionId], references: [id])
+  court     Court       @relation(fields: [courtId], references: [id])
+
+  @@id([sessionId, courtId])
+}
+
+model Signup {
+  id          String       @id @default(cuid())
+  sessionId   String
+  userId      String
+  status      SignupStatus @default(SIGNED_UP)
+  checkedInAt DateTime?
+  position    Int          @default(0)
+  session     OpenSession  @relation(fields: [sessionId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, status])
+}
+
+model Game {
+  id             String       @id @default(cuid())
+  sessionId      String
+  courtId        String
+  status         GameStatus   @default(PENDING)
+  assignmentType String       @default("auto") // auto | manual
+  isExhibition   Boolean      @default(false)
+  teamAScore     Int?
+  teamBScore     Int?
+  winner         String?      // A | B
+  reportedById   String?      // player who reported the score (null = host-entered)
+  reportedAt     DateTime?
+  disputed       Boolean      @default(false)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  session        OpenSession  @relation(fields: [sessionId], references: [id])
+  court          Court        @relation(fields: [courtId], references: [id])
+  players        GamePlayer[]
+
+  @@index([sessionId, status])
+}
+
+model GamePlayer {
+  gameId       String
+  userId       String
+  team         String // A | B
+  ratingBefore Float?
+  ratingAfter  Float?
+  game   Game   @relation(fields: [gameId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@id([gameId, userId])
+  @@index([userId])
+}
+
+enum PlanPeriod {
+  MONTHLY
+  ANNUAL
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  WAIVED
+  REFUNDED
+}
+
+model Plan {
+  id           String       @id @default(cuid())
+  name         String
+  priceCents   Int
+  period       PlanPeriod   @default(MONTHLY)
+  dropInFree   Boolean      @default(true) // active members skip drop-in fees
+  isActive     Boolean      @default(true)
+  memberships  Membership[]
+}
+
+model Membership {
+  id       String      @id @default(cuid())
+  userId   String
+  planId   String
+  startsAt DateTime    @default(now())
+  endsAt   DateTime
+  user     User        @relation(fields: [userId], references: [id])
+  plan     Plan        @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@index([userId, endsAt])
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  userId       String
+  sessionId    String?
+  membershipId String?
+  amountCents  Int
+  method       String? // CASH | GCASH | CARD | ONLINE (gateway later)
+  status       PaymentStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+  paidAt       DateTime?
+  user         User          @relation(fields: [userId], references: [id])
+  session      OpenSession?  @relation(fields: [sessionId], references: [id])
+  membership   Membership?   @relation(fields: [membershipId], references: [id])
+
+  @@unique([userId, sessionId])
+  @@index([sessionId, status])
+}
+
+// Single-club configuration (name, Venue Pro entitlement, custom theme)
+model ClubConfig {
+  id            String    @id @default("club")
+  name          String    @default("PicklePlay Club")
+  venueProUntil DateTime?
+  theme         Json      @default("{}") // Venue Pro: court colors etc.
+}
+
+enum ProOrderStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+// Venue Pro purchases (Stripe card / GCash / Maya via PayMongo)
+model ProOrder {
+  id          String         @id @default(cuid())
+  provider    String         // STRIPE | GCASH | MAYA
+  providerRef String?        @unique // gateway checkout-session id
+  months      Int            @default(1)
+  amountCents Int
+  status      ProOrderStatus @default(PENDING)
+  createdById String?
+  createdAt   DateTime       @default(now())
+  paidAt      DateTime?
+}
+
+model AuditEvent {
+  id        String      @id @default(cuid())
+  sessionId String
+  type      String
+  actorId   String?
+  payload   Json
+  createdAt DateTime    @default(now())
+  session   OpenSession @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId, createdAt])
+}

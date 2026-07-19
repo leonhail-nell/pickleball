@@ -1,0 +1,14 @@
+/* Minimal globals — MUI handles theming. Only drag affordances + TV scaling live here. */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+body {
+  background: #f0fdf4;
+  min-height: 100vh;
+}
+
+.draggable { cursor: grab; }
+.drop-zone { transition: box-shadow 120ms ease, border-color 120ms ease; }
+.drop-zone.drop-target { box-shadow: 0 0 0 2px #3fb950; border-color: #3fb950 !important; }
+
+.tv h1 { font-size: 2rem; letter-spacing: -0.5px; }
