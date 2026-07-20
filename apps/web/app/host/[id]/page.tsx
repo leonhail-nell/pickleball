@@ -5,7 +5,7 @@ import { api, type Board } from '@/lib/api';
 import { useBoard } from '@/lib/useBoard';
 import { useClub } from '@/lib/useClub';
 import { TopNav } from '@/components/nav';
-import { CourtCard, QueueChip, Stars, StatsBar, TEAM_BLUE, TEAM_ORANGE } from '@/components/board';
+import { CourtCard, QueueRow, Stars, StatsBar, avatarSrcFor, TEAM_BLUE, TEAM_ORANGE } from '@/components/board';
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, Link, MenuItem, Rating, Select, Stack, TextField, Typography,
@@ -498,108 +498,162 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
         {/* ── queue rail + check-in ──────────────────────────────── */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Stack spacing={2}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Waiting queue{' '}
-                  <Typography component="span" variant="caption" color="text.secondary">
-                    (drag onto a court)
+            {/* ── design-system rail: queue + check-in in one card ── */}
+            <Card sx={{ overflow: 'hidden' }}>
+              <Box sx={{ px: 2.5, pt: 2.25, pb: 1.75, borderBottom: '1px solid #eef3ea' }}>
+                <Stack direction="row" spacing={1} alignItems="baseline">
+                  <Typography variant="h6" fontWeight={800}>Waiting queue</Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.45)' }}>
+                    drag onto a court
                   </Typography>
-                </Typography>
-                <Stack spacing={1}>
-                  {board.waiting.map((p, i) => (
-                    <Stack key={p.id} direction="row" alignItems="center" spacing={0.5}>
-                      <Box
-                        className="draggable"
-                        draggable
-                        onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
-                        sx={{ flex: 1, minWidth: 0, cursor: 'grab' }}
-                      >
-                        <QueueChip
-                          player={p}
-                          prefix={`${i + 1}. `}
-                          warn={p.deficit > 0}
-                          small
-                        />
-                        <Typography variant="caption" color="text.secondary" sx={{ pl: 1 }}>
-                          {p.gamesPlayed}g · paired {p.coverage.played}/{p.coverage.total}
-                        </Typography>
-                      </Box>
-                      {p.deficit > 0 && <Chip size="small" label={`+${p.deficit}`} color="warning" />}
-                      <IconButton size="small" title="Pause player" onClick={() => pause(p.id, 'pause')}>
-                        <PauseIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" title="Edit name/rating" onClick={() => setEditPlayer({ id: p.id, name: p.name, rating: p.rating.toFixed(2) })}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" title="Remove from session" onClick={() => removeFromSession(p.id, p.name)}>
-                        <PersonRemoveIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  ))}
-                  {board.players.filter((p) => p.status === 'paused').map((p) => (
-                    <Stack key={p.id} direction="row" alignItems="center" spacing={0.5}>
-                      <Box sx={{ flex: 1, minWidth: 0, opacity: 0.65 }}>
-                        <QueueChip player={p} prefix="⏸ " small />
-                      </Box>
-                      <IconButton size="small" title="Resume player" onClick={() => pause(p.id, 'resume')}>
-                        <PlayArrowIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" title="Remove from session" onClick={() => removeFromSession(p.id, p.name)}>
-                        <PersonRemoveIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  ))}
                 </Stack>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>Check in a player</Typography>
-                <Stack spacing={1} mb={1.5}>
-                  <TextField
-                    size="small" label="Walk-in guest name" fullWidth
-                    value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                <Stack direction="row" spacing={1} alignItems="center" mt={1}>
+                  <Chip
+                    size="small" label={`${board.waiting.length} waiting`}
+                    sx={{ bgcolor: '#e2f2dc', color: '#2f6b2b', fontWeight: 700, height: 22 }}
                   />
-                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Typography variant="body2" color="text.secondary">Skill</Typography>
-                      <Rating precision={0.5} max={5} value={guestRating} onChange={(_, v) => setGuestRating(v ?? 3)} />
-                    </Stack>
-                    <Button variant="contained" size="small" disabled={!guestName.trim()} onClick={addGuest}>
-                      Add & check in
-                    </Button>
+                  <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.4)' }}>
+                    Games · Partners
+                  </Typography>
+                </Stack>
+              </Box>
+
+              <Box sx={{ maxHeight: 520, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                {board.waiting.map((p, i) => (
+                  <QueueRow
+                    key={p.id}
+                    player={p}
+                    rank={i + 1}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData('text/plain', p.id)}
+                    actions={(
+                      <Stack direction="row" spacing={0} flexShrink={0}>
+                        <IconButton
+                          size="small" title="Pause player" onClick={() => pause(p.id, 'pause')}
+                          sx={{ color: '#5a6b56', '&:hover': { bgcolor: '#e3ecdd', color: '#2f6b2b' } }}
+                        >
+                          <PauseIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small" title="Edit name/rating"
+                          onClick={() => setEditPlayer({ id: p.id, name: p.name, rating: p.rating.toFixed(2) })}
+                          sx={{ color: '#5a6b56', '&:hover': { bgcolor: '#e3ecdd', color: '#2f6b2b' } }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small" title="Remove from session" onClick={() => removeFromSession(p.id, p.name)}
+                          sx={{ color: '#a86a5c', '&:hover': { bgcolor: '#f7ece9', color: '#a04a35' } }}
+                        >
+                          <PersonRemoveIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    )}
+                  />
+                ))}
+                {board.players.filter((p) => p.status === 'paused').map((p) => (
+                  <Stack
+                    key={p.id} direction="row" alignItems="center" spacing={1.25}
+                    sx={{
+                      bgcolor: '#f4f7f2', border: '1px dashed #e7efe2', borderRadius: '12px',
+                      px: 1.25, py: 1, opacity: 0.65,
+                    }}
+                  >
+                    <Typography sx={{ width: 20, textAlign: 'center', fontSize: '0.8rem', flexShrink: 0 }}>⏸</Typography>
+                    <Avatar src={avatarSrcFor(p)} alt={p.name} sx={{ width: 34, height: 34, bgcolor: '#d1e7c9', flexShrink: 0 }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography noWrap sx={{ fontSize: '0.88rem', fontWeight: 700 }}>{p.name}</Typography>
+                      <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)' }}>paused</Typography>
+                    </Box>
+                    <IconButton
+                      size="small" title="Resume player" onClick={() => pause(p.id, 'resume')}
+                      sx={{ color: '#5a6b56', '&:hover': { bgcolor: '#e3ecdd', color: '#2f6b2b' } }}
+                    >
+                      <PlayArrowIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small" title="Remove from session" onClick={() => removeFromSession(p.id, p.name)}
+                      sx={{ color: '#a86a5c', '&:hover': { bgcolor: '#f7ece9', color: '#a04a35' } }}
+                    >
+                      <PersonRemoveIcon fontSize="small" />
+                    </IconButton>
                   </Stack>
+                ))}
+                {!board.waiting.length && !board.players.some((p) => p.status === 'paused') && (
+                  <Typography sx={{ py: 3.5, textAlign: 'center', color: 'rgba(28,42,26,0.4)', fontSize: '0.82rem' }}>
+                    Queue is empty
+                  </Typography>
+                )}
+              </Box>
+
+              {/* check-in section */}
+              <Box sx={{ borderTop: '1px solid #eef3ea', bgcolor: '#f7faf5', p: 2 }}>
+                <Typography fontWeight={800} sx={{ fontSize: '0.95rem', mb: 1.5 }}>
+                  Check in a player
+                </Typography>
+                <TextField
+                  size="small" fullWidth placeholder="Walk-in guest name"
+                  value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#ffffff', borderRadius: '10px' } }}
+                />
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" my={1.5}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.6)' }}>Skill</Typography>
+                    <Rating precision={0.5} max={5} value={guestRating} onChange={(_, v) => setGuestRating(v ?? 3)} />
+                  </Stack>
+                  <Button
+                    variant="contained" size="small" disabled={!guestName.trim()} onClick={addGuest}
+                    sx={{ borderRadius: 999, whiteSpace: 'nowrap', px: 2.25 }}
+                  >
+                    Add & check in
+                  </Button>
                 </Stack>
                 <TextField
                   size="small" fullWidth placeholder="Search members…"
-                  value={search} onChange={(e) => setSearch(e.target.value)} sx={{ mb: 1 }}
+                  value={search} onChange={(e) => setSearch(e.target.value)}
+                  sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#ffffff', borderRadius: '10px' } }}
                 />
-                <Stack spacing={1}>
-                  {filteredMembers.slice(0, 8).map((m) => (
-                    <Stack key={m.id} direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                        <Avatar src={m.avatarUrl ?? undefined} sx={{ width: 26, height: 26, fontSize: '0.7rem', bgcolor: '#4c9a44' }}>
-                          {m.name?.[0]?.toUpperCase()}
-                        </Avatar>
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={600} noWrap>{m.name}</Typography>
-                          <Stars value={m.rating} fontSize="0.62rem" />
-                        </Box>
-                      </Stack>
-                      <Stack direction="row" spacing={0.5}>
-                        <IconButton size="small" title="Edit name/rating" onClick={() => setEditPlayer({ id: m.id, name: m.name, rating: m.rating.toFixed(2) })}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <Button size="small" variant="outlined" onClick={() => checkIn(m.id)}>
-                          Check in
-                        </Button>
-                      </Stack>
+                <Box sx={{ mt: 1, maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                  {filteredMembers.slice(0, 12).map((m) => (
+                    <Stack
+                      key={m.id} direction="row" alignItems="center" spacing={1.25}
+                      sx={{ px: 0.75, py: 1, borderRadius: '10px', '&:hover': { bgcolor: '#eef4e9' } }}
+                    >
+                      <Avatar src={avatarSrcFor(m)} alt={m.name} sx={{ width: 32, height: 32, bgcolor: '#d1e7c9', flexShrink: 0 }} />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="body2" noWrap>
+                          <Box component="span" sx={{ fontWeight: 600 }}>{m.name}</Box>{' '}
+                          <Box component="span" sx={{ color: 'rgba(28,42,26,0.45)', fontSize: '0.78rem' }}>
+                            ({m.rating.toFixed(2)})
+                          </Box>
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small" title="Edit name/rating"
+                        onClick={() => setEditPlayer({ id: m.id, name: m.name, rating: m.rating.toFixed(2) })}
+                        sx={{ color: '#5a6b56', '&:hover': { bgcolor: '#e3ecdd', color: '#2f6b2b' } }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <Button
+                        size="small" variant="outlined" onClick={() => checkIn(m.id)}
+                        sx={{
+                          borderRadius: 999, whiteSpace: 'nowrap', color: '#2f6b2b',
+                          borderColor: '#cfe3c6', bgcolor: '#ffffff',
+                          '&:hover': { bgcolor: '#e4f1dd', borderColor: '#a9d29a' },
+                        }}
+                      >
+                        Check in
+                      </Button>
                     </Stack>
                   ))}
-                </Stack>
-              </CardContent>
+                  {!filteredMembers.length && (
+                    <Typography sx={{ py: 2, textAlign: 'center', color: 'rgba(28,42,26,0.4)', fontSize: '0.82rem' }}>
+                      No members match
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
             </Card>
 
             {payments.length > 0 && (
@@ -679,34 +733,37 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
           Fill {assignFor?.team === 'A' ? 'Team 1' : 'Team 2'} slot
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={1}>
-            Assign from the queue:
+          <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2f5d2b', mb: 1 }}>
+            Assign from queue
           </Typography>
-          <Stack spacing={1}>
+          <Stack spacing={0.75}>
             {board.waiting
               .filter((w) => {
                 const p = assignFor ? pending[assignFor.courtId] : undefined;
                 return !p || (!p.A.includes(w.id) && !p.B.includes(w.id));
               })
               .map((w) => (
-                <Button
-                  key={w.id} variant="outlined"
-                  sx={{ justifyContent: 'flex-start', textTransform: 'none', gap: 1 }}
+                <Box
+                  key={w.id} component="button"
                   onClick={() => {
                     if (assignFor) addPending(assignFor.courtId, w.id, assignFor.team);
                     setAssignFor(null);
                   }}
+                  sx={{
+                    display: 'flex', alignItems: 'center', gap: 1.25, width: '100%',
+                    bgcolor: '#f2f8ef', border: '1px solid #dcead5', borderRadius: '12px',
+                    px: 1.5, py: 1.1, cursor: 'pointer', font: 'inherit', textAlign: 'left',
+                    '&:hover': { bgcolor: '#e4f1dd', borderColor: '#bfdcb2' },
+                  }}
                 >
-                  <Avatar src={w.avatarUrl ?? undefined} sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#4c9a44' }}>
-                    {w.name?.[0]?.toUpperCase()}
-                  </Avatar>
-                  <Typography fontWeight={700} sx={{ flex: 1, textAlign: 'left' }} noWrap>{w.name}</Typography>
+                  <Avatar src={avatarSrcFor(w)} alt={w.name} sx={{ width: 32, height: 32, bgcolor: '#d1e7c9', flexShrink: 0 }} />
+                  <Typography noWrap sx={{ flex: 1, fontWeight: 700, fontSize: '0.9rem', color: '#1c2a1a' }}>{w.name}</Typography>
                   <Stars value={w.rating} fontSize="0.7rem" />
-                  <Typography variant="caption" color="text.secondary">{w.gamesPlayed}g</Typography>
-                </Button>
+                  <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)' }}>{w.gamesPlayed}g</Typography>
+                </Box>
               ))}
             {!board.waiting.length && (
-              <Typography color="text.secondary" variant="body2">
+              <Typography sx={{ py: 2, textAlign: 'center', color: 'rgba(28,42,26,0.4)', fontSize: '0.82rem' }}>
                 No one is waiting — check players in first.
               </Typography>
             )}
@@ -719,27 +776,33 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
 
       {/* ── swap player dialog ─────────────────────────────────── */}
       <Dialog open={!!swapOut} onClose={() => setSwapOut(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Swap out {swapOut?.name}</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, pb: 0.5 }}>Swap out {swapOut?.name}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={1}>
-            Pick a replacement from the queue (logged as manual):
+          <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)' }} mb={2}>
+            Pick a replacement — the change is logged as a manual override.
           </Typography>
-          <Stack spacing={1}>
+          <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2f5d2b', mb: 1 }}>
+            Assign from queue
+          </Typography>
+          <Stack spacing={0.75}>
             {board.waiting.map((w) => (
-              <Button
-                key={w.id} variant="outlined" onClick={() => swapIn(w.id)}
-                sx={{ justifyContent: 'flex-start', textTransform: 'none', gap: 1 }}
+              <Box
+                key={w.id} component="button" onClick={() => swapIn(w.id)}
+                sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.25, width: '100%',
+                  bgcolor: '#f2f8ef', border: '1px solid #dcead5', borderRadius: '12px',
+                  px: 1.5, py: 1.1, cursor: 'pointer', font: 'inherit', textAlign: 'left',
+                  '&:hover': { bgcolor: '#e4f1dd', borderColor: '#bfdcb2' },
+                }}
               >
-                <Avatar src={w.avatarUrl ?? undefined} sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#4c9a44' }}>
-                  {w.name?.[0]?.toUpperCase()}
-                </Avatar>
-                <Typography fontWeight={700} sx={{ flex: 1, textAlign: 'left' }} noWrap>{w.name}</Typography>
+                <Avatar src={avatarSrcFor(w)} alt={w.name} sx={{ width: 32, height: 32, bgcolor: '#d1e7c9', flexShrink: 0 }} />
+                <Typography noWrap sx={{ flex: 1, fontWeight: 700, fontSize: '0.9rem', color: '#1c2a1a' }}>{w.name}</Typography>
                 <Stars value={w.rating} fontSize="0.7rem" />
-                <Typography variant="caption" color="text.secondary">{w.gamesPlayed}g</Typography>
-              </Button>
+                <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)' }}>{w.gamesPlayed}g</Typography>
+              </Box>
             ))}
             {!board.waiting.length && (
-              <Typography color="text.secondary" variant="body2">
+              <Typography sx={{ py: 2, textAlign: 'center', color: 'rgba(28,42,26,0.4)', fontSize: '0.82rem' }}>
                 No one is waiting — pause or void instead.
               </Typography>
             )}

@@ -23,7 +23,7 @@ export default function TermsPage() {
               they are not official DUPR or UTPR ratings.
             </Typography>
             <Typography paragraph color="text.secondary">
-              The free plan supports sessions of up to 5 courts. Venue Pro unlocks
+              The free plan supports sessions of up to 4 courts. Venue Pro unlocks
               larger sessions; fees, trials, and billing terms are shown at the time of
               purchase. Clubs are responsible for their own drop-in fees and refunds.
             </Typography>

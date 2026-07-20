@@ -6,19 +6,22 @@ import {
   Avatar, Box, Chip, Dialog, DialogContent, DialogTitle, Stack, Table, TableBody,
   TableCell, TableHead, TableRow, Typography,
 } from '@mui/material';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
+import { avatarSrcFor } from './board';
 
 const MEDALS = ['#e8a812', '#8fa3b5', '#c96a1b']; // gold, silver, bronze
 
-/** PickleHub-style leaderboard: rank · player · +/- · W-L · win %.
+/** Design-system leaderboard: medal · avatar + name (+/- below) · W-L · win %.
  *  Tap a row for that player's match history. */
 export function Leaderboard({
-  sessionId, standings, dense = false, limit,
+  sessionId, standings, dense = false, limit, title = false,
 }: {
   sessionId: string;
   standings: Standing[];
   dense?: boolean;
   limit?: number;
+  /** Render the in-card "Leaderboard — by win rate" heading. */
+  title?: boolean;
 }) {
   const [history, setHistory] = useState<{ name: string; games: PlayerGame[] } | null>(null);
 
@@ -32,16 +35,27 @@ export function Leaderboard({
   }
 
   const rows = limit ? standings.slice(0, limit) : standings;
+  const headSx = {
+    fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em',
+    textTransform: 'uppercase' as const, color: 'rgba(28,42,26,0.45)',
+    borderColor: '#eef3ea',
+  };
 
   return (
     <>
+      {title && (
+        <Stack direction="row" spacing={1.25} alignItems="baseline" sx={{ px: 2.5, pt: 2.25, pb: 0.5 }}>
+          <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Leaderboard</Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.45)' }}>by win rate</Typography>
+        </Stack>
+      )}
       <Table size={dense ? 'small' : 'medium'}>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ width: 48 }}>#</TableCell>
-            <TableCell>Player</TableCell>
-            <TableCell align="right">W - L</TableCell>
-            <TableCell align="right">Win %</TableCell>
+            <TableCell sx={{ ...headSx, width: 52 }}>#</TableCell>
+            <TableCell sx={headSx}>Player</TableCell>
+            <TableCell sx={headSx} align="right">W – L</TableCell>
+            <TableCell sx={headSx} align="right">Win %</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -50,37 +64,43 @@ export function Leaderboard({
               key={r.userId}
               hover
               onClick={() => openHistory(r)}
-              sx={{ cursor: 'pointer' }}
+              sx={{ cursor: 'pointer', '& td': { borderColor: '#eef3ea', py: dense ? 1 : 1.75 } }}
             >
               <TableCell>
                 {r.rank <= 3 ? (
-                  <EmojiEventsIcon sx={{ color: MEDALS[r.rank - 1], fontSize: 20 }} />
+                  <MilitaryTechIcon sx={{ color: MEDALS[r.rank - 1], fontSize: dense ? 22 : 28 }} />
                 ) : (
-                  r.rank
+                  <Typography sx={{ fontWeight: 700, color: 'rgba(28,42,26,0.45)', pl: 0.5 }}>{r.rank}</Typography>
                 )}
               </TableCell>
               <TableCell>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Avatar src={r.avatarUrl ?? undefined} sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: 'secondary.main' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar
+                    src={avatarSrcFor({ id: r.userId, name: r.name, avatarUrl: r.avatarUrl })}
+                    alt={r.name}
+                    sx={{ width: dense ? 34 : 46, height: dense ? 34 : 46, fontSize: '0.9rem', bgcolor: '#d1e7c9' }}
+                  >
                     {r.name?.[0]?.toUpperCase()}
                   </Avatar>
-                  <Box>
-                    <Typography fontWeight={700} variant="body2">{r.name}</Typography>
-                    <Typography variant="caption" color={r.diff >= 0 ? 'success.main' : 'error.main'}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography noWrap sx={{ fontWeight: 800, fontSize: dense ? '0.9rem' : '1.05rem' }}>
+                      {r.name}
+                    </Typography>
+                    <Typography variant="caption" fontWeight={700} color={r.diff >= 0 ? 'success.main' : 'error.main'}>
                       {r.diff >= 0 ? `+${r.diff}` : r.diff}
                     </Typography>
                   </Box>
                 </Stack>
               </TableCell>
               <TableCell align="right">
-                <Typography variant="body2" fontWeight={700}>
+                <Typography sx={{ fontWeight: 800, fontSize: dense ? '0.9rem' : '1.05rem', whiteSpace: 'nowrap' }}>
                   <Box component="span" sx={{ color: 'success.main' }}>{r.wins}</Box>
-                  {' - '}
+                  <Box component="span" sx={{ color: 'rgba(28,42,26,0.35)' }}>{' – '}</Box>
                   <Box component="span" sx={{ color: 'error.main' }}>{r.losses}</Box>
                 </Typography>
               </TableCell>
               <TableCell align="right">
-                <Typography variant="body2" fontWeight={700}>
+                <Typography sx={{ fontWeight: 800, fontSize: dense ? '0.9rem' : '1.05rem' }}>
                   {Math.round(r.winPct * 100)}%
                 </Typography>
               </TableCell>
@@ -88,7 +108,7 @@ export function Leaderboard({
           ))}
           {!rows.length && (
             <TableRow>
-              <TableCell colSpan={4}>
+              <TableCell colSpan={4} sx={{ borderColor: '#eef3ea' }}>
                 <Typography color="text.secondary" variant="body2">
                   No completed games yet.
                 </Typography>

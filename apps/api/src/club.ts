@@ -45,7 +45,7 @@ export async function ensureSessionPayment(sessionId: string, userId: string): P
   });
 }
 
-export const FREE_COURT_LIMIT = 5;
+export const FREE_COURT_LIMIT = 4;
 
 export async function getClub() {
   return prisma.clubConfig.upsert({
@@ -80,9 +80,13 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
 
   app.patch<{ Body: { name?: string; theme?: Record<string, string> | null } }>(
     '/club',
-    { preHandler: requireRole('ADMIN') },
+    { preHandler: requireRole(...HOSTS) },
     async (req, reply) => {
       await getClub();
+      // renaming the club stays admin-only; the Pro theme is open to organizers
+      if (req.body.name !== undefined && (req.user as AuthUser).role !== 'ADMIN') {
+        return reply.code(403).send({ error: 'only admins can rename the club' });
+      }
       let themePatch: Record<string, unknown> = {};
       if (req.body.theme !== undefined) {
         if (!(await venueProActive())) {
@@ -103,7 +107,7 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
   // ── Venue Pro checkout (Stripe card, GCash/Maya via PayMongo) ──────
   app.post<{ Body: { provider: 'stripe' | 'gcash' | 'maya'; months?: number } }>(
     '/club/venue-pro/checkout',
-    { preHandler: requireRole('ADMIN') },
+    { preHandler: requireRole(...HOSTS) },
     async (req, reply) => {
       const provider = req.body.provider;
       const months = Math.min(12, Math.max(1, req.body.months ?? 1));
@@ -186,7 +190,7 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
   /** After the gateway redirects back, verify payment and extend Venue Pro. */
   app.post<{ Params: { orderId: string } }>(
     '/club/venue-pro/verify/:orderId',
-    { preHandler: requireRole('ADMIN') },
+    { preHandler: requireRole(...HOSTS) },
     async (req, reply) => {
       const order = await prisma.proOrder.findUnique({ where: { id: req.params.orderId } });
       if (!order) return reply.code(404).send({ error: 'order not found' });
@@ -233,8 +237,8 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     },
   );
 
-  // 14-day Venue Pro trial (payment gateway hookup comes later)
-  app.post('/club/venue-pro/trial', { preHandler: requireRole('ADMIN') }, async (req, reply) => {
+  // 14-day Venue Pro trial — any organizer can start it for the club
+  app.post('/club/venue-pro/trial', { preHandler: requireRole(...HOSTS) }, async (req, reply) => {
     const club = await getClub();
     if (club.venueProUntil && club.venueProUntil > new Date()) {
       return reply.code(400).send({ error: 'Venue Pro is already active' });

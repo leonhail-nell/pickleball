@@ -47,6 +47,7 @@ export default function AdminPage() {
   const [editMember, setEditMember] = useState<{ id: string; name: string; rating: number } | null>(null);
   const [club, setClub] = useState<ClubInfo | null>(null);
   const [clubName, setClubName] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [theme, setTheme] = useState<CourtPalette>({});
   const [savingTheme, setSavingTheme] = useState(false);
 
@@ -130,18 +131,22 @@ export default function AdminPage() {
   }
 
   const load = useCallback(() => {
-    api<AdminStats>('/admin/stats').then(setStats).catch((e) => setError(e.message));
-    api<Plan[]>('/plans').then(setPlans).catch(() => {});
-    api<Member[]>('/users').then(setUsers).catch(() => {});
+    const u = getUser();
+    if (u?.role === 'ADMIN') {
+      api<AdminStats>('/admin/stats').then(setStats).catch((e) => setError(e.message));
+      api<Plan[]>('/plans').then(setPlans).catch(() => {});
+      api<Member[]>('/users').then(setUsers).catch(() => {});
+    }
     void loadClub();
   }, []);
 
   useEffect(() => {
     const u = getUser();
-    if (!u || u.role !== 'ADMIN') {
+    if (!u || !['HOST', 'ADMIN'].includes(u.role)) {
       router.push('/login?next=/admin');
       return;
     }
+    setIsAdmin(u.role === 'ADMIN');
     load();
     // returning from a payment gateway? verify the order and activate Pro
     const params = new URLSearchParams(window.location.search);
@@ -177,7 +182,8 @@ export default function AdminPage() {
     } catch (e) { setError((e as Error).message); }
   }
 
-  if (!stats) return <Box p={3}><Typography>Loading…</Typography></Box>;
+  // admins wait for stats; organizers only need the club config
+  if (isAdmin ? !stats : !club) return <Box p={3}><Typography>Loading…</Typography></Box>;
 
   const card = (label: string, value: string | number, sub?: string) => (
     <Grid size={{ xs: 6, md: 2 }}>
@@ -201,14 +207,16 @@ export default function AdminPage() {
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {notice && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice('')}>{notice}</Alert>}
 
-      <Grid container spacing={2}>
-        {card('Sessions', stats.totals.sessions)}
-        {card('Players', stats.totals.players)}
-        {card('Games', stats.totals.games)}
-        {card('Revenue', peso(stats.totals.revenueCents), 'collected')}
-        {card('Pending', peso(stats.totals.pendingCents), 'uncollected fees')}
-        {card('Members', stats.totals.activeMemberships, 'active')}
-      </Grid>
+      {isAdmin && stats && (
+        <Grid container spacing={2}>
+          {card('Sessions', stats.totals.sessions)}
+          {card('Players', stats.totals.players)}
+          {card('Games', stats.totals.games)}
+          {card('Revenue', peso(stats.totals.revenueCents), 'collected')}
+          {card('Pending', peso(stats.totals.pendingCents), 'uncollected fees')}
+          {card('Members', stats.totals.activeMemberships, 'active')}
+        </Grid>
+      )}
 
       {club && (
         <Card
@@ -243,19 +251,21 @@ export default function AdminPage() {
                     : `Free plan runs up to ${club.freeCourtLimit} courts per session. Start a 14-day trial to unlock more.`}
                 </Typography>
               </Box>
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                <TextField
-                  size="small" label="Club name" value={clubName}
-                  onChange={(e) => setClubName(e.target.value)}
-                  sx={club.venuePro ? { '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.9)' } } : undefined}
-                />
-                <Button
-                  variant={club.venuePro ? 'contained' : 'outlined'} size="small" onClick={saveClubName}
-                  sx={club.venuePro ? { bgcolor: '#fff', color: '#15803d', '&:hover': { bgcolor: '#f0fdf4' } } : undefined}
-                >
-                  Save
-                </Button>
-              </Stack>
+              {isAdmin && (
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <TextField
+                    size="small" label="Club name" value={clubName}
+                    onChange={(e) => setClubName(e.target.value)}
+                    sx={club.venuePro ? { '& .MuiOutlinedInput-root': { bgcolor: 'rgba(255,255,255,0.9)' } } : undefined}
+                  />
+                  <Button
+                    variant={club.venuePro ? 'contained' : 'outlined'} size="small" onClick={saveClubName}
+                    sx={club.venuePro ? { bgcolor: '#fff', color: '#15803d', '&:hover': { bgcolor: '#f0fdf4' } } : undefined}
+                  >
+                    Save
+                  </Button>
+                </Stack>
+              )}
             </Stack>
             {!club.venuePro && (
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap mt={2}>
@@ -337,6 +347,7 @@ export default function AdminPage() {
         </Card>
       )}
 
+      {isAdmin && (
       <Grid container spacing={2} mt={0.5}>
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
@@ -380,7 +391,9 @@ export default function AdminPage() {
           </Card>
         </Grid>
       </Grid>
+      )}
 
+      {isAdmin && (
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>Members</Typography>
@@ -489,6 +502,7 @@ export default function AdminPage() {
           </Table>
         </CardContent>
       </Card>
+      )}
 
       <Dialog open={!!editMember} onClose={() => setEditMember(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Edit member</DialogTitle>
@@ -515,6 +529,7 @@ export default function AdminPage() {
         </DialogActions>
       </Dialog>
 
+      {isAdmin && stats && (
       <Card sx={{ mt: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>Recent sessions</Typography>
@@ -544,6 +559,7 @@ export default function AdminPage() {
           </Table>
         </CardContent>
       </Card>
+      )}
     </Box>
     </>
   );

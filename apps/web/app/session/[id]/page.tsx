@@ -12,11 +12,12 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TvIcon from '@mui/icons-material/Tv';
 import ShareIcon from '@mui/icons-material/Share';
+import { QueueChip } from '@/components/board';
 
 interface Participant {
   id: string;
   status: string;
-  user: { id: string; name: string; rating: number };
+  user: { id: string; name: string; rating: number; avatarUrl?: string | null };
 }
 
 /** Public event page — hero card + Details / Participants / Leaderboard tabs
@@ -228,11 +229,13 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             )}
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {participants.map((p) => (
-                <Chip
+                <QueueChip
                   key={p.id}
-                  label={`${p.user.name}${p.status === 'CHECKED_IN' ? ' ✓' : p.status === 'WAITLISTED' ? ' (waitlist)' : ''}`}
-                  variant={p.status === 'CHECKED_IN' ? 'filled' : 'outlined'}
-                  color={p.status === 'CHECKED_IN' ? 'success' : 'default'}
+                  player={{
+                    ...p.user,
+                    name: `${p.user.name}${p.status === 'CHECKED_IN' ? ' ✓' : p.status === 'WAITLISTED' ? ' · waitlist' : ''}`,
+                  }}
+                  highlight={p.status === 'CHECKED_IN'}
                 />
               ))}
               {user && !participants.length && (

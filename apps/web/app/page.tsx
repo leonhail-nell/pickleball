@@ -164,13 +164,16 @@ export default function Landing() {
           One screen to run the session — one public board for players who want live updates.
         </Typography>
         <Card sx={{ maxWidth: 860, mx: 'auto', overflow: 'hidden' }}>
-          <Box sx={{ bgcolor: '#111827', color: '#f9fafb', px: 2.5, py: 1.25 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography fontWeight={800}>Friday Night Open Play</Typography>
-              <Stack direction="row" spacing={2}>
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>GAMES <b>12</b></Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>COURTS <b>2/2</b></Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>QUEUE <b>4</b></Typography>
+          <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid #eef3ea' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+              <Typography fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Friday Night Open Play</Typography>
+              <Stack direction="row" spacing={0.75}>
+                {[['Games', '12'], ['Courts', '2/2'], ['Queue', '4']].map(([k, v]) => (
+                  <Chip
+                    key={k} size="small" label={`${k} ${v}`}
+                    sx={{ bgcolor: '#e2f2dc', color: '#2f6b2b', fontWeight: 700, height: 22 }}
+                  />
+                ))}
               </Stack>
             </Stack>
           </Box>
@@ -229,7 +232,7 @@ export default function Landing() {
               For clubs running bigger open play
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.9)', mt: 1.5, maxWidth: 720 }}>
-              PicklePlay is free for up to 5 courts. Venue Pro is for clubs that need more courts,
+              PicklePlay is free for up to 4 courts. Venue Pro is for clubs that need more courts,
               plus priority support as new features land.
             </Typography>
             <Grid container spacing={1} mt={2} sx={{ maxWidth: 760 }}>

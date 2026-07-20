@@ -8,6 +8,7 @@ import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, Rating, Stack, TextField, Typography,
 } from '@mui/material';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import { avatarSrcFor } from '@/components/board';
 import { setAuth, getToken } from '@/lib/api';
 import Grid from '@mui/material/Grid2';
 
@@ -165,7 +166,14 @@ export default function MePage() {
           {error && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setError('')}>{error}</Alert>}
           <Stack direction="row" spacing={2.5} alignItems="center" flexWrap="wrap" useFlexGap>
             <Stack alignItems="center" spacing={1}>
-              <Avatar src={avatar ?? undefined} sx={{ width: 84, height: 84, fontSize: '1.8rem', bgcolor: 'primary.main' }}>
+              <Avatar
+                src={avatarSrcFor({ id: getUser()?.id, name: stats.name, avatarUrl: avatar })}
+                alt={stats.name}
+                sx={{
+                  width: 84, height: 84, fontSize: '1.8rem', bgcolor: '#d1e7c9',
+                  boxShadow: '0 0 0 3px #ffffff, 0 4px 10px rgba(46,90,40,0.18)',
+                }}
+              >
                 {stats.name?.[0]?.toUpperCase()}
               </Avatar>
               <Button component="label" size="small" startIcon={<PhotoCameraIcon />} variant="outlined">

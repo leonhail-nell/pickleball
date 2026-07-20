@@ -4,8 +4,7 @@ import { use, useEffect, useState } from 'react';
 import { api, type Standing } from '@/lib/api';
 import { useBoard } from '@/lib/useBoard';
 import { useClub } from '@/lib/useClub';
-import { CourtCard, QueueChip, StatsBar, CoverageRing } from '@/components/board';
-import { Avatar } from '@mui/material';
+import { CourtCard, QueueRow, StatsBar, CoverageTile } from '@/components/board';
 import { Leaderboard } from '@/components/leaderboard';
 import { TopNav } from '@/components/nav';
 import {
@@ -40,37 +39,38 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
         </Alert>
       )}
 
-      <Card sx={{ mb: 2 }}>
-        <CardContent sx={{ py: '12px !important' }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <Typography variant="h4" component="h1">Open Play — Live</Typography>
-              {board.rotationsPaused && <Chip color="warning" label="⏸ PAUSED" sx={{ fontWeight: 800 }} />}
-            </Stack>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <StatsBar
-                courts={board.courts.length}
-                players={board.players.length}
-                queue={board.waiting.length}
-              />
-              <Button
-                size="small" variant="outlined" startIcon={<ShareIcon />}
-                onClick={async () => {
-                  const url = window.location.href;
-                  const top = standings.slice(0, 3).map((r) => `${r.rank}. ${r.name} (${r.wins}-${r.losses})`).join('  ');
-                  const text = top ? `🏓 Open play standings!\n🏆 ${top}\n${url}` : `🏓 Follow our open play live: ${url}`;
-                  try {
-                    if (navigator.share) await navigator.share({ title: 'Open Play', text, url });
-                    else await navigator.clipboard.writeText(text);
-                  } catch { /* cancelled */ }
-                }}
-              >
-                Share
-              </Button>
-            </Stack>
-          </Stack>
-        </CardContent>
-      </Card>
+      <Stack direction="row" justifyContent="space-between" alignItems="baseline" flexWrap="wrap" gap={1.5} mb={2.5}>
+        <Stack direction="row" spacing={1.5} alignItems="baseline" flexWrap="wrap" useFlexGap>
+          <Typography variant="h4" component="h1" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
+            Open Play — Live
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}>
+            {board.courts.filter((c) => c.gameId).length} of {board.courts.length} courts active
+          </Typography>
+          {board.rotationsPaused && <Chip color="warning" label="⏸ PAUSED" sx={{ fontWeight: 800 }} />}
+        </Stack>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <StatsBar
+            courts={board.courts.length}
+            players={board.players.length}
+            queue={board.waiting.length}
+          />
+          <Button
+            size="small" variant="outlined" startIcon={<ShareIcon />}
+            onClick={async () => {
+              const url = window.location.href;
+              const top = standings.slice(0, 3).map((r) => `${r.rank}. ${r.name} (${r.wins}-${r.losses})`).join('  ');
+              const text = top ? `🏓 Open play standings!\n🏆 ${top}\n${url}` : `🏓 Follow our open play live: ${url}`;
+              try {
+                if (navigator.share) await navigator.share({ title: 'Open Play', text, url });
+                else await navigator.clipboard.writeText(text);
+              } catch { /* cancelled */ }
+            }}
+          >
+            Share
+          </Button>
+        </Stack>
+      </Stack>
 
       {board.courts.length === 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -114,50 +114,52 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
       </Grid>
 
       <Typography variant="h6" color="text.secondary" mt={4} mb={1}>Next up</Typography>
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+      <Grid container spacing={1.25}>
         {board.waiting.map((p, i) => (
-          <QueueChip key={p.id} player={p} prefix={`${i + 1}. `} warn={p.deficit > 0} />
+          <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+            <QueueRow player={p} rank={i + 1} />
+          </Grid>
         ))}
-        {!board.waiting.length && <Typography color="text.secondary">Everyone is playing.</Typography>}
-      </Stack>
+        {!board.waiting.length && (
+          <Grid size={12}>
+            <Typography color="text.secondary">Everyone is playing.</Typography>
+          </Grid>
+        )}
+      </Grid>
 
-      {standings.length > 0 && (
-        <>
-          <Typography variant="h6" color="text.secondary" mt={4} mb={1}>
-            🏆 Leaderboard
-          </Typography>
-          <Card sx={{ maxWidth: 640 }}>
-            <Leaderboard sessionId={id} standings={standings} dense limit={10} />
-          </Card>
-        </>
-      )}
-
-      <Typography variant="h6" color="text.secondary" mt={3} mb={1}>
-        Fairness check — games played & partner coverage
-      </Typography>
-      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-        {board.players
-          .slice()
-          .sort((a, b) => b.gamesPlayed - a.gamesPlayed)
-          .map((p) => (
-            <Card key={p.id} sx={{ px: 1.5, py: 1 }}>
-              <Stack direction="row" spacing={1.25} alignItems="center">
-                <Avatar src={p.avatarUrl ?? undefined} sx={{ width: 34, height: 34, fontSize: '0.85rem', fontWeight: 700, bgcolor: '#4c9a44' }}>
-                  {p.name?.[0]?.toUpperCase()}
-                </Avatar>
-                <CoverageRing played={p.coverage.played} total={p.coverage.total} />
-                <Box>
-                  <Typography variant="body2" fontWeight={700}>
-                    {p.name}{p.status === 'paused' ? ' ⏸' : ''}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {p.gamesPlayed} games · {p.coverage.played}/{p.coverage.total} partners
-                  </Typography>
-                </Box>
-              </Stack>
+      <Grid container spacing={2.5} mt={2}>
+        {standings.length > 0 && (
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Card sx={{ pb: 1 }}>
+              <Leaderboard sessionId={id} standings={standings} limit={10} title />
             </Card>
-          ))}
-      </Stack>
+          </Grid>
+        )}
+        <Grid size={{ xs: 12, md: standings.length > 0 ? 7 : 12 }}>
+          <Card>
+            <CardContent sx={{ p: 2.5 }}>
+              <Stack direction="row" spacing={1.25} alignItems="baseline" mb={2}>
+                <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
+                  Fairness check
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.45)' }}>
+                  games played & partner coverage
+                </Typography>
+              </Stack>
+              <Grid container spacing={1.5}>
+                {board.players
+                  .slice()
+                  .sort((a, b) => b.gamesPlayed - a.gamesPlayed)
+                  .map((p) => (
+                    <Grid key={p.id} size={{ xs: 12, sm: 6 }}>
+                      <CoverageTile player={p} />
+                    </Grid>
+                  ))}
+              </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       <Typography variant="caption" color="text.secondary" display="block" mt={4}>
         🔒 Fair play guaranteed — every matchup is drawn by a verified random shuffle.

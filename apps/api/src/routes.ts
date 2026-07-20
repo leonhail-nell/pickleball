@@ -290,7 +290,7 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
   app.get<{ Params: { id: string } }>('/sessions/:id/signups', async (req) =>
     prisma.signup.findMany({
       where: { sessionId: req.params.id, status: { not: 'CANCELLED' } },
-      include: { user: { select: { id: true, name: true, rating: true } } },
+      include: { user: { select: { id: true, name: true, rating: true, avatarUrl: true } } },
     }),
   );
 

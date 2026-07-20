@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Avatar, Box, Chip, CircularProgress, Stack, Typography } from '@mui/material';
-import type { NamedPlayer } from '@/lib/api';
+import { Avatar, Badge, Box, Chip, CircularProgress, Stack, Typography } from '@mui/material';
+import type { BoardPlayer, NamedPlayer } from '@/lib/api';
 
 export const TEAM_BLUE = '#3b82f6';
 export const TEAM_ORANGE = '#f59e0b';
@@ -29,6 +29,16 @@ export const COURT = {
 /** Venue Pro custom-theme override (court colors). */
 export type CourtPalette = Partial<Record<'frame' | 'slot' | 'kitchen' | 'netA' | 'netB' | 'netEdge' | 'star' | 'chipBg' | 'chipText', string>>;
 
+/**
+ * Design-system avatar: the player's photo, or a DiceBear "adventurer"
+ * seeded by their id so everyone gets a stable, friendly face.
+ */
+export function avatarSrcFor(p: { id?: string; name?: string; avatarUrl?: string | null }): string {
+  if (p.avatarUrl) return p.avatarUrl;
+  const seed = encodeURIComponent(p.id ?? p.name ?? 'player');
+  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&backgroundColor=d1e7c9`;
+}
+
 /** DUPR-ish rating → friendly level label. */
 export function skillLabel(rating: number): string {
   if (rating < 3.0) return 'Beginner';
@@ -48,20 +58,21 @@ export function Stars({ value, fontSize = '0.8rem', color }: { value: number; fo
   );
 }
 
-/** Circular player photo with a white ring; falls back to the initial. */
+/** Circular player photo with a white ring; falls back to a DiceBear face. */
 export function PlayerAvatar({
   player, size = 56,
 }: {
-  player: { name: string; avatarUrl?: string | null };
+  player: { id?: string; name: string; avatarUrl?: string | null };
   size?: number;
 }) {
   return (
     <Avatar
-      src={player.avatarUrl ?? undefined}
+      src={avatarSrcFor(player)}
+      alt={player.name}
       sx={{
         width: size, height: size,
         fontSize: size * 0.4, fontWeight: 700,
-        bgcolor: '#4c9a44', color: '#fff',
+        bgcolor: '#d1e7c9', color: '#2f5d2b',
         boxShadow: '0 0 0 3px #ffffff, 0 4px 10px rgba(46,90,40,0.18)',
       }}
     >
@@ -297,6 +308,52 @@ export function CourtCard({
   );
 }
 
+/**
+ * Design-system queue row: rank · avatar · name · stars · games/partners.
+ * Used by the host waiting rail and the TV board "Next up" list.
+ */
+export function QueueRow({
+  player, rank, actions, draggable = false, onDragStart,
+}: {
+  player: BoardPlayer;
+  rank?: number;
+  actions?: React.ReactNode;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+}) {
+  return (
+    <Stack
+      direction="row" alignItems="center" spacing={1.25}
+      draggable={draggable} onDragStart={onDragStart}
+      className={draggable ? 'draggable' : undefined}
+      sx={{
+        bgcolor: '#f4f7f2', border: '1px solid #e7efe2', borderRadius: '12px',
+        px: 1.25, py: 1, minWidth: 0,
+        ...(draggable && { cursor: 'grab' }),
+        '&:hover': { bgcolor: '#ecf4e8', borderColor: '#cfe3c6' },
+      }}
+    >
+      {rank != null && (
+        <Typography sx={{ width: 20, textAlign: 'center', fontSize: '0.75rem', fontWeight: 800, color: 'rgba(28,42,26,0.35)', flexShrink: 0 }}>
+          {rank}
+        </Typography>
+      )}
+      <Avatar src={avatarSrcFor(player)} alt={player.name} sx={{ width: 34, height: 34, bgcolor: '#d1e7c9', flexShrink: 0 }} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography noWrap sx={{ fontSize: '0.88rem', fontWeight: 700, color: COURT.ink }}>{player.name}</Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Stars value={player.rating} fontSize="0.62rem" />
+          <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)', fontVariantNumeric: 'tabular-nums' }}>
+            {player.gamesPlayed}g · {player.coverage.played}/{player.coverage.total}
+          </Typography>
+        </Stack>
+      </Box>
+      {player.deficit > 0 && <Chip size="small" label={`+${player.deficit}`} color="warning" sx={{ height: 20 }} />}
+      {actions}
+    </Stack>
+  );
+}
+
 /** "Next up" queue pill: avatar + name + amber stars. */
 export function QueueChip({
   player, prefix, highlight = false, warn = false, small = false,
@@ -317,8 +374,9 @@ export function QueueChip({
       }}
     >
       <Avatar
-        src={player.avatarUrl ?? undefined}
-        sx={{ width: small ? 24 : 28, height: small ? 24 : 28, fontSize: '0.7rem', fontWeight: 700, bgcolor: '#4c9a44' }}
+        src={avatarSrcFor(player)}
+        alt={player.name}
+        sx={{ width: small ? 24 : 28, height: small ? 24 : 28, fontSize: '0.7rem', fontWeight: 700, bgcolor: '#d1e7c9' }}
       >
         {player.name?.[0]?.toUpperCase()}
       </Avatar>
@@ -361,8 +419,9 @@ export function TeamPanel({
         {players.map((p, i) => (
           <Stack key={p.id} direction="row" spacing={1} alignItems="center" sx={{ mb: i === players.length - 1 ? 0 : 1, minWidth: 0 }}>
             <Avatar
-              src={p.avatarUrl ?? undefined}
-              sx={{ width: 32, height: 32, fontSize: '0.85rem', fontWeight: 700, bgcolor: '#4c9a44' }}
+              src={avatarSrcFor(p)}
+              alt={p.name}
+              sx={{ width: 32, height: 32, fontSize: '0.85rem', fontWeight: 700, bgcolor: '#d1e7c9' }}
             >
               {p.name?.[0]?.toUpperCase()}
             </Avatar>
@@ -432,6 +491,51 @@ export function StatsBar({ courts, players, queue }: { courts: number; players: 
       {item('PLAYERS', players, '#111827')}
       {item('QUEUE', queue, '#d97706')}
     </Stack>
+  );
+}
+
+/**
+ * Fairness-check tile: avatar with an on-court dot, games + partner coverage,
+ * and an amber progress bar (design-system "Fairness check" card).
+ */
+export function CoverageTile({ player }: { player: BoardPlayer }) {
+  const pct = player.coverage.total
+    ? Math.min(100, (player.coverage.played / player.coverage.total) * 100)
+    : 0;
+  return (
+    <Box
+      sx={{
+        bgcolor: '#f7faf5', border: '1px solid #e7efe2', borderRadius: '14px',
+        p: 1.75, display: 'flex', gap: 1.75, alignItems: 'center', height: '100%',
+        boxSizing: 'border-box',
+      }}
+    >
+      <Badge
+        overlap="circular"
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        variant="dot"
+        invisible={player.status !== 'playing'}
+        sx={{
+          '& .MuiBadge-dot': {
+            bgcolor: '#22c55e', width: 13, height: 13, borderRadius: '50%',
+            border: '2.5px solid #f7faf5', top: 5, right: 5,
+          },
+        }}
+      >
+        <Avatar src={avatarSrcFor(player)} alt={player.name} sx={{ width: 56, height: 56, bgcolor: '#d1e7c9' }} />
+      </Badge>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography noWrap sx={{ fontWeight: 800, fontSize: '1rem', color: COURT.ink }}>
+          {player.name}{player.status === 'paused' ? ' ⏸' : ''}
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.55)', display: 'block' }}>
+          {player.gamesPlayed} games · {player.coverage.played}/{player.coverage.total} partners
+        </Typography>
+        <Box sx={{ mt: 0.9, height: 5, borderRadius: 999, bgcolor: 'rgba(28,42,26,0.10)', overflow: 'hidden' }}>
+          <Box sx={{ width: `${pct}%`, height: '100%', borderRadius: 999, bgcolor: COURT.star }} />
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
