@@ -5,11 +5,15 @@ import { useRouter } from 'next/navigation';
 import { api, getUser, clearAuth } from '@/lib/api';
 import { TopNav } from '@/components/nav';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, MenuItem, Select,
-  Stack, TextField, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
+  DialogTitle, InputAdornment, MenuItem, Select, Stack, TextField, ToggleButton,
+  ToggleButtonGroup, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import TvIcon from '@mui/icons-material/Tv';
+import SearchIcon from '@mui/icons-material/Search';
+import LockIcon from '@mui/icons-material/Lock';
+import PublicIcon from '@mui/icons-material/Public';
 import SportsTennisIcon from '@mui/icons-material/SportsTennis';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { ConfirmDialog, type ConfirmState } from '@/components/confirm-dialog';
@@ -26,6 +30,7 @@ interface SessionRow {
   status: string;
   tierMin: number | null;
   tierMax: number | null;
+  isPrivate?: boolean;
   courts: { court: { id: string; number: number } }[];
   _count: { signups: number };
 }
@@ -45,15 +50,22 @@ export default function Sessions() {
   const [error, setError] = useState('');
   // read localStorage only after mount — avoids SSR/client hydration mismatch
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
-  const [tier, setTier] = useState('open');
   const [mySignups, setMySignups] = useState<Record<string, string>>({});
+  // toolbar: search text + filter dropdown
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  // create-session modal form
+  const [createOpen, setCreateOpen] = useState(false);
+  const [tier, setTier] = useState('open');
+  const [title, setTitle] = useState('');
+  const [price, setPrice] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+  const [creating, setCreating] = useState(false);
 
   const loadMySignups = () =>
     api<{ sessionId: string; status: string }[]>('/me/signups')
       .then((rows) => setMySignups(Object.fromEntries(rows.map((r) => [r.sessionId, r.status]))))
       .catch(() => {});
-  const [title, setTitle] = useState('');
-  const [price, setPrice] = useState('');
 
   useEffect(() => {
     const u = getUser();
@@ -83,6 +95,7 @@ export default function Sessions() {
     }
     const now = new Date();
     const end = new Date(now.getTime() + 3 * 3600_000);
+    setCreating(true);
     try {
       await api('/sessions', {
         method: 'POST',
@@ -96,9 +109,12 @@ export default function Sessions() {
           title: title || 'Open Play',
           organizer: user?.name ?? '',
           priceCents: Math.round(Number(price || 0) * 100),
+          isPrivate: visibility === 'private',
         },
       });
       setSessions(await api<SessionRow[]>('/sessions'));
+      setCreateOpen(false);
+      setTitle(''); setPrice(''); setTier('open'); setVisibility('public');
     } catch (e) {
       setError((e as Error).message);
     }
@@ -141,6 +157,21 @@ export default function Sessions() {
         ? { bgcolor: '#e8ebe6', color: '#5a6b56' }
         : { bgcolor: '#e2f2dc', color: '#2f6b2b' };
 
+  // search + filter, applied client-side
+  const q = search.trim().toLowerCase();
+  const visible = sessions.filter((s) => {
+    if (q && !`${s.title} ${s.organizer}`.toLowerCase().includes(q)) return false;
+    if (filter === 'mine') return isHost ? canManage(s) : !!mySignups[s.id];
+    if (filter === 'live') return s.status === 'LIVE';
+    if (filter === 'private') return !!s.isPrivate;
+    if (filter === 'open') return s.status !== 'CLOSED';
+    return true;
+  });
+
+  const filterOptions = isHost
+    ? [['all', 'All sessions'], ['mine', 'My sessions'], ['live', 'Live now'], ['private', 'Members only'], ['open', 'Upcoming & live']]
+    : [['all', 'All sessions'], ['mine', 'Joined'], ['live', 'Live now'], ['open', 'Upcoming & live']];
+
   return (
     <>
     <TopNav />
@@ -154,36 +185,39 @@ export default function Sessions() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
-      {isHost && (
-        <Card sx={{ mb: 2.5 }}>
-          <CardContent sx={{ p: 2.5 }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
-              <TextField
-                size="small" placeholder="Event title" sx={{ flex: 1, minWidth: 220 }}
-                value={title} onChange={(e) => setTitle(e.target.value)}
-              />
-              <TextField
-                size="small" placeholder="₱ / player" sx={{ width: 130 }} inputMode="numeric"
-                value={price} onChange={(e) => setPrice(e.target.value)}
-              />
-              <Select size="small" value={tier} onChange={(e) => setTier(e.target.value)}>
-                {Object.entries(TIERS).map(([k, t]) => (
-                  <MenuItem key={k} value={k}>{t.label}</MenuItem>
-                ))}
-              </Select>
+      <Card sx={{ mb: 2.5 }}>
+        <CardContent sx={{ p: 2 }}>
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+            <TextField
+              size="small" placeholder="Search sessions…" sx={{ flex: 1, minWidth: 220 }}
+              value={search} onChange={(e) => setSearch(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" sx={{ color: 'rgba(28,42,26,0.4)' }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Select size="small" value={filter} onChange={(e) => setFilter(e.target.value)} sx={{ minWidth: 170 }}>
+              {filterOptions.map(([k, label]) => (
+                <MenuItem key={k} value={k}>{label}</MenuItem>
+              ))}
+            </Select>
+            {isHost && (
               <Button
-                variant="contained" startIcon={<AddIcon />} onClick={createSession}
+                variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}
                 sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' }, whiteSpace: 'nowrap' }}
               >
-                Create session (now, all courts)
+                Create session
               </Button>
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
 
       <Stack spacing={2.5}>
-        {sessions.map((s) => {
+        {visible.map((s) => {
           const duration = Math.round(
             (new Date(s.endsAt).getTime() - new Date(s.startsAt).getTime()) / 3600_000,
           );
@@ -207,6 +241,12 @@ export default function Sessions() {
                         label={s.tierMin != null ? `${s.tierMin} – ${s.tierMax ?? '∞'}` : 'All Levels'}
                         sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800, height: 24 }}
                       />
+                      {s.isPrivate && (
+                        <Chip
+                          size="small" icon={<LockIcon sx={{ fontSize: '0.85rem !important' }} />} label="Members only"
+                          sx={{ bgcolor: '#eef4e9', color: '#2f5d2b', fontWeight: 700, height: 24, '& .MuiChip-icon': { color: '#2f5d2b' } }}
+                        />
+                      )}
                     </Stack>
                     <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)', mt: 0.75 }}>
                       {new Date(s.startsAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -303,10 +343,74 @@ export default function Sessions() {
             </Card>
           );
         })}
-        {!sessions.length && !error && (
-          <Typography color="text.secondary">No sessions yet.</Typography>
+        {!visible.length && !error && (
+          <Card>
+            <CardContent sx={{ py: 5, textAlign: 'center' }}>
+              <Typography color="text.secondary">
+                {sessions.length
+                  ? 'No sessions match your search or filter.'
+                  : isHost ? 'No sessions yet — create your first one.' : 'No sessions yet.'}
+              </Typography>
+            </CardContent>
+          </Card>
         )}
       </Stack>
+
+      {/* ── create-session modal ───────────────────────────────── */}
+      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>New open play</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} mt={0.5}>
+            <TextField
+              label="Event title" fullWidth autoFocus placeholder="Friday Night Open Play"
+              value={title} onChange={(e) => setTitle(e.target.value)}
+            />
+            <TextField
+              label="Drop-in fee (₱ / player)" fullWidth inputMode="numeric" placeholder="0"
+              value={price} onChange={(e) => setPrice(e.target.value)}
+              InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
+            />
+            <TextField
+              select label="Skill level" fullWidth value={tier} onChange={(e) => setTier(e.target.value)}
+            >
+              {Object.entries(TIERS).map(([k, t]) => (
+                <MenuItem key={k} value={k}>{t.label}</MenuItem>
+              ))}
+            </TextField>
+            <Box>
+              <Typography variant="body2" fontWeight={700} mb={0.75}>Who can see this?</Typography>
+              <ToggleButtonGroup
+                exclusive fullWidth value={visibility} size="small"
+                onChange={(_, v) => v && setVisibility(v)}
+              >
+                <ToggleButton value="public" sx={{ textTransform: 'none', gap: 0.75 }}>
+                  <PublicIcon fontSize="small" /> Public
+                </ToggleButton>
+                <ToggleButton value="private" sx={{ textTransform: 'none', gap: 0.75 }}>
+                  <LockIcon fontSize="small" /> Members only
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)', display: 'block', mt: 0.75 }}>
+                {visibility === 'private'
+                  ? 'Only club members (and staff) will see this session.'
+                  : 'Anyone can find and join this open play.'}
+              </Typography>
+            </Box>
+            <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)' }}>
+              Starts now for 3 hours, using all available courts. You can add or remove courts once it&apos;s live.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setCreateOpen(false)} sx={{ color: '#5a6b56', fontWeight: 700 }}>Cancel</Button>
+          <Button
+            variant="contained" disabled={creating} onClick={createSession}
+            sx={{ bgcolor: '#2f6b2b', fontWeight: 700, '&:hover': { bgcolor: '#24551f' } }}
+          >
+            Create session
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
     </Box>

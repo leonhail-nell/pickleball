@@ -67,6 +67,7 @@ model OpenSession {
   description  String        @default("")
   organizer    String        @default("")
   createdById  String?       // owning organizer — only they (or an admin) can manage it
+  isPrivate    Boolean       @default(false) // private = only club members can see it
   priceCents   Int           @default(0) // per-player fee, displayed on the event card
   startsAt     DateTime
   endsAt       DateTime

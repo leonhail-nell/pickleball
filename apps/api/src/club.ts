@@ -60,6 +60,16 @@ export async function venueProActive(): Promise<boolean> {
   return !!club.venueProUntil && club.venueProUntil > new Date();
 }
 
+/**
+ * Club member = any registered user of this club. In this single-club app,
+ * having an account is what makes you a member — no paid plan required.
+ * Drives who can see "members-only" (private) sessions: every signed-in user
+ * can, but anonymous visitors and shared public links cannot.
+ */
+export async function isClubMember(user?: { id: string; role: string } | null): Promise<boolean> {
+  return !!user;
+}
+
 export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry) {
   // ── club config & Venue Pro ────────────────────────────────────────
   app.get('/club', async () => {

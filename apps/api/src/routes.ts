@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pickleplay/db';
 import { hashPassword, requireRole, manageBlock, type AuthUser } from './auth.js';
-import { ensureSessionPayment, venueProActive, FREE_COURT_LIMIT } from './club.js';
+import { ensureSessionPayment, venueProActive, isClubMember, FREE_COURT_LIMIT } from './club.js';
 import type { LiveSession, LiveSessionRegistry } from './live.js';
 
 const HOSTS = ['HOST', 'ADMIN'] as const;
@@ -72,12 +72,17 @@ async function computeStandings(sessionId: string) {
 
 export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistry) {
   // ── schedule ─────────────────────────────────────────────────────
-  app.get('/sessions', async () =>
-    prisma.openSession.findMany({
+  // Private sessions are visible only to club members (staff or active
+  // members) and to the organizer who created them.
+  app.get('/sessions', async (req) => {
+    const user = req.user as AuthUser;
+    const member = await isClubMember(user);
+    return prisma.openSession.findMany({
+      where: member ? {} : { OR: [{ isPrivate: false }, { createdById: user.id }] },
       orderBy: { startsAt: 'desc' },
       include: { courts: { include: { court: true } }, _count: { select: { signups: true } } },
-    }),
-  );
+    });
+  });
 
   app.get('/courts', async () => prisma.court.findMany({ orderBy: { number: 'asc' } }));
 
@@ -91,7 +96,8 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
     return { sessions, players, games };
   });
 
-  // public session detail (event page)
+  // public session detail (event page) — this route is auth-optional, so
+  // read the token if present to check private-session visibility.
   app.get<{ Params: { id: string } }>('/sessions/:id', async (req, reply) => {
     const s = await prisma.openSession.findUnique({
       where: { id: req.params.id },
@@ -101,6 +107,11 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
       },
     });
     if (!s) return reply.code(404).send({ error: 'not found' });
+    if (s.isPrivate) {
+      const viewer = await req.jwtVerify<AuthUser>().catch(() => null);
+      const allowed = viewer && (viewer.id === s.createdById || (await isClubMember(viewer)));
+      if (!allowed) return reply.code(404).send({ error: 'not found' });
+    }
     const { seed, engineState, qrToken, ...pub } = s as Record<string, unknown>;
     return pub;
   });
@@ -174,8 +185,8 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
           error: `Free plan supports up to ${FREE_COURT_LIMIT} courts — start a Venue Pro trial in the club dashboard to run more.`,
         });
       }
-      const { title, description, organizer, priceCents } = req.body as {
-        title?: string; description?: string; organizer?: string; priceCents?: number;
+      const { title, description, organizer, priceCents, isPrivate } = req.body as {
+        title?: string; description?: string; organizer?: string; priceCents?: number; isPrivate?: boolean;
       };
       const creator = req.user as AuthUser;
       return prisma.openSession.create({
@@ -184,6 +195,7 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
           description: description ?? '',
           organizer: organizer ?? '',
           createdById: creator.id,
+          isPrivate: isPrivate ?? false,
           priceCents: priceCents ?? 0,
           startsAt: new Date(startsAt),
           endsAt: new Date(endsAt),

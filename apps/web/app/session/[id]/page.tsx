@@ -134,6 +134,12 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                   size="small" label={level}
                   sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800, height: 24 }}
                 />
+                {(meta as SessionMeta & { isPrivate?: boolean }).isPrivate && (
+                  <Chip
+                    size="small" label="🔒 Members only"
+                    sx={{ bgcolor: '#eef4e9', color: '#2f5d2b', fontWeight: 700, height: 24 }}
+                  />
+                )}
               </Stack>
               <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)', mt: 0.75 }}>
                 {new Date(meta.startsAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
