@@ -7,7 +7,7 @@ import { useBoard } from '@/lib/useBoard';
 import { useClub } from '@/lib/useClub';
 import { TopNav } from '@/components/nav';
 import { PaddleLogo } from '@/components/logo';
-import { CourtCard, QueueChip } from '@/components/board';
+import { CourtCard, QueueChip, UpNextCard } from '@/components/board';
 import {
   Alert, Box, Button, Card, CardContent, Chip, LinearProgress, Stack, TextField, Typography,
 } from '@mui/material';
@@ -138,7 +138,10 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                       size="small" sx={{ width: 72 }} label="Team 2" inputMode="numeric"
                       value={score.b} onChange={(e) => setScore({ ...score, b: e.target.value })}
                     />
-                    <Button variant="contained" size="small" disabled={!score.a || !score.b} onClick={reportScore}>
+                    <Button
+                      variant="contained" size="small" disabled={!score.a || !score.b} onClick={reportScore}
+                      sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}
+                    >
                       Report
                     </Button>
                   </Stack>
@@ -147,29 +150,46 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 <Typography variant="h6">You&apos;re paused ⏸</Typography>
               ) : queuePos >= 0 ? (
                 <>
-                  <Typography variant="h6">
-                    You&apos;re <strong>#{queuePos + 1}</strong> in the queue
+                  <Typography variant="h6" fontWeight={800}>
+                    You&apos;re <Box component="span" sx={{ color: '#2f6b2b' }}>#{queuePos + 1}</Box> in the queue
                   </Typography>
-                  <LinearProgress
-                    variant="determinate"
-                    value={Math.max(5, 100 - (queuePos / Math.max(1, board.waiting.length)) * 100)}
-                    sx={{ mt: 1 }}
-                  />
+                  <Box sx={{ mt: 1.25, height: 7, borderRadius: 999, bgcolor: 'rgba(28,42,26,0.10)', overflow: 'hidden' }}>
+                    <Box
+                      sx={{
+                        width: `${Math.max(5, 100 - (queuePos / Math.max(1, board.waiting.length)) * 100)}%`,
+                        height: '100%', borderRadius: 999, bgcolor: '#4c9a44',
+                      }}
+                    />
+                  </Box>
                 </>
               ) : (
-                <Typography variant="h6">Waiting for the next draw…</Typography>
+                <Typography variant="h6" fontWeight={800}>Waiting for the next draw…</Typography>
               )}
               <Stack direction="row" spacing={1} mt={2} flexWrap="wrap" useFlexGap>
-                <Chip label={`${my.gamesPlayed} games`} />
-                <Chip label={`paired ${my.coverage.played}/${my.coverage.total}`} variant="outlined" />
-                {my.deficit > 0 && <Chip label={`catching up +${my.deficit}`} color="warning" />}
+                <Chip
+                  label={`${my.gamesPlayed} games`}
+                  sx={{ bgcolor: '#eef4e9', border: '1px solid #dbe8d3', color: '#2f5d2b', fontWeight: 700 }}
+                />
+                <Chip
+                  label={`paired ${my.coverage.played}/${my.coverage.total}`}
+                  sx={{ bgcolor: '#eef4e9', border: '1px solid #dbe8d3', color: '#2f5d2b', fontWeight: 700 }}
+                />
+                {my.deficit > 0 && (
+                  <Chip
+                    label={`catching up +${my.deficit}`}
+                    sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800 }}
+                  />
+                )}
               </Stack>
             </CardContent>
           </Card>
 
           <Stack direction="row" spacing={1}>
             {my.status === 'paused' ? (
-              <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={() => pauseResume('resume')}>
+              <Button
+                variant="contained" startIcon={<PlayArrowIcon />} onClick={() => pauseResume('resume')}
+                sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}
+              >
                 I&apos;m back
               </Button>
             ) : my.status === 'active' ? (
@@ -223,9 +243,14 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
       )}
 
           <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Courts right now
-            </Typography>
+            <Stack direction="row" spacing={1} alignItems="baseline" mb={1}>
+              <Typography fontWeight={800} sx={{ fontSize: '1.05rem', letterSpacing: '-0.01em' }}>
+                Courts
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.45)' }}>
+                live from the venue
+              </Typography>
+            </Stack>
             <Stack spacing={1.5}>
               {board.courts.map((c) => (
                 <Box key={c.courtId} sx={{ opacity: c.gameId ? 1 : 0.8 }}>
@@ -243,13 +268,10 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                 </Box>
               ))}
               {board.nextMatch && (
-                <CourtCard
-                  size="sm"
-                  palette={club?.theme}
-                  title="Up next" chipLabel="Next match"
-                  teamA={board.nextMatch.teamA}
-                  teamB={board.nextMatch.teamB}
-                  headerRight={<Chip size="small" label="Auto" color="success" sx={{ height: 20, fontWeight: 700 }} />}
+                <UpNextCard
+                  title="Up next" chipLabel="Next match" rightLabel="Auto-matched"
+                  players={[...board.nextMatch.teamA, ...board.nextMatch.teamB]}
+                  footer="Starts when a court frees up"
                 />
               )}
             </Stack>

@@ -4,7 +4,7 @@ import { use, useEffect, useState } from 'react';
 import { api, type Standing } from '@/lib/api';
 import { useBoard } from '@/lib/useBoard';
 import { useClub } from '@/lib/useClub';
-import { CourtCard, QueueRow, StatsBar, CoverageTile } from '@/components/board';
+import { CourtCard, UpNextCard, StatsBar, CoverageTile } from '@/components/board';
 import { Leaderboard } from '@/components/leaderboard';
 import { TopNav } from '@/components/nav';
 import {
@@ -100,31 +100,47 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
           </Grid>
         ))}
 
-        {board.nextMatch && (
-          <Grid size={{ xs: 12, md: 6 }}>
-            <CourtCard
-              title="Up next" chipLabel="Next match"
-              palette={club?.theme}
-              teamA={board.nextMatch.teamA}
-              teamB={board.nextMatch.teamB}
-              headerRight={<Chip size="small" label="Auto" color="success" sx={{ height: 22, fontWeight: 700 }} />}
-            />
-          </Grid>
-        )}
       </Grid>
 
-      <Typography variant="h6" color="text.secondary" mt={4} mb={1}>Next up</Typography>
-      <Grid container spacing={1.25}>
-        {board.waiting.map((p, i) => (
-          <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-            <QueueRow player={p} rank={i + 1} />
-          </Grid>
-        ))}
-        {!board.waiting.length && (
-          <Grid size={12}>
-            <Typography color="text.secondary">Everyone is playing.</Typography>
-          </Grid>
-        )}
+      {/* ── up next: waiting courts auto-filled from the queue ──── */}
+      <Stack direction="row" spacing={1.25} alignItems="baseline" mt={4} mb={1.5}>
+        <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Up next</Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.45)' }}>
+          waiting courts · auto-filled from the queue
+        </Typography>
+      </Stack>
+      <Grid container spacing={2}>
+        {(() => {
+          const idleCourts = board.courts.filter((c) => !c.gameId).length;
+          const nm = board.nextMatch;
+          const nmPlayers = nm ? [...nm.teamA, ...nm.teamB] : [];
+          const nmIds = new Set(nmPlayers.map((p) => p.id));
+          const rest = board.waiting.filter((w) => !nmIds.has(w.id));
+          const groups: { players: typeof nmPlayers; label: string }[] = [];
+          if (nm) groups.push({ players: nmPlayers, label: 'Auto-matched' });
+          for (let i = 0; i < rest.length; i += 4) {
+            const chunk = rest.slice(i, i + 4);
+            groups.push({ players: chunk, label: `Queue #${i + 1}–${i + chunk.length}` });
+          }
+          const cardCount = Math.min(4, Math.max(groups.length, board.courts.length, 1));
+          while (groups.length < cardCount) groups.push({ players: [], label: 'Empty' });
+          return groups.slice(0, 4).map((g, i) => (
+            <Grid key={i} size={{ xs: 12, sm: 6, md: 4 }}>
+              <UpNextCard
+                title={`Up Next ${i + 1}`}
+                rightLabel={g.label}
+                players={g.players}
+                footer={
+                  g.players.length === 4
+                    ? (idleCourts === 0 ? 'All courts full' : 'Starting soon…')
+                    : g.players.length
+                      ? 'Waiting for more players'
+                      : 'No players waiting'
+                }
+              />
+            </Grid>
+          ));
+        })()}
       </Grid>
 
       <Grid container spacing={2.5} mt={2}>

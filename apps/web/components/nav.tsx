@@ -15,7 +15,13 @@ export function TopNav() {
   useEffect(() => setUser(getUser()), []);
 
   return (
-    <Box sx={{ borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)' }}>
+    <Box
+      sx={{
+        position: 'sticky', top: 0, zIndex: (t) => t.zIndex.appBar,
+        borderBottom: '1px solid', borderColor: 'divider',
+        bgcolor: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(10px)',
+      }}
+    >
       <Container maxWidth="xl">
         <Stack direction="row" justifyContent="space-between" alignItems="center" py={1.25}>
           <Stack

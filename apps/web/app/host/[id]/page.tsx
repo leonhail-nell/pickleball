@@ -5,7 +5,9 @@ import { api, type Board } from '@/lib/api';
 import { useBoard } from '@/lib/useBoard';
 import { useClub } from '@/lib/useClub';
 import { TopNav } from '@/components/nav';
-import { CourtCard, QueueRow, Stars, StatsBar, avatarSrcFor, TEAM_BLUE, TEAM_ORANGE } from '@/components/board';
+import { CourtCard, QueueRow, UpNextCard, Stars, StatsBar, avatarSrcFor } from '@/components/board';
+import { ConfirmDialog, type ConfirmState } from '@/components/confirm-dialog';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, Link, MenuItem, Rating, Select, Stack, TextField, Typography,
@@ -83,6 +85,12 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
   const [swapOut, setSwapOut] = useState<{ gameId: string; outId: string; name: string } | null>(null);
   // assign dialog: which open slot (court + team) is being filled from the queue
   const [assignFor, setAssignFor] = useState<{ courtId: string; team: 'A' | 'B' } | null>(null);
+  // design-system confirmation modal (replaces window.confirm)
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  // search filters: waiting-queue rail + assign/swap dialogs
+  const [queueSearch, setQueueSearch] = useState('');
+  const [dialogSearch, setDialogSearch] = useState('');
+  const matches = (name: string, q: string) => !q.trim() || name.toLowerCase().includes(q.trim().toLowerCase());
   // score tally dialog: which team just won
   const [scoreFor, setScoreFor] = useState<{ gameId: string; winner: 'A' | 'B' } | null>(null);
   const [winScore, setWinScore] = useState('11');
@@ -115,10 +123,13 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
     );
     setSwapOut(null);
   };
-  const removeFromSession = (userId: string, name: string) => {
-    if (!window.confirm(`Remove ${name} from this session?`)) return;
-    void call(() => api(`/sessions/${id}/players/${userId}/remove`, { method: 'POST' }));
-  };
+  const removeFromSession = (userId: string, name: string) =>
+    setConfirm({
+      title: `Remove ${name}?`,
+      message: 'They will be taken off this session and any unpaid drop-in fee is dropped. They can check in again later.',
+      confirmLabel: 'Remove player',
+      onConfirm: () => void call(() => api(`/sessions/${id}/players/${userId}/remove`, { method: 'POST' })),
+    });
   const toggleRotations = () =>
     call(() =>
       api(`/sessions/${id}/rotations`, {
@@ -126,15 +137,20 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
         json: { action: board?.rotationsPaused ? 'resume' : 'pause' },
       }),
     );
-  const endSession = async () => {
-    if (!window.confirm('End this open play? Final standings will be published.')) return;
-    try {
-      await api(`/sessions/${id}/close`, { method: 'POST' });
-      router.push(`/session/${id}`);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  };
+  const endSession = () =>
+    setConfirm({
+      title: 'End this open play?',
+      message: 'Final standings are published and the shuffle seed is revealed for the fairness audit. This closes the session for everyone.',
+      confirmLabel: 'End session',
+      onConfirm: async () => {
+        try {
+          await api(`/sessions/${id}/close`, { method: 'POST' });
+          router.push(`/session/${id}`);
+        } catch (e) {
+          setError((e as Error).message);
+        }
+      },
+    });
   const submitScore = () => {
     if (!scoreFor) return;
     const w = Number(winScore || 11);
@@ -163,8 +179,6 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
     call(() => api(`/sessions/${id}/pause`, { method: 'POST', json: { userId, action } }));
   const voidGame = (gameId: string) =>
     call(() => api(`/games/${gameId}/finish`, { method: 'POST', json: { sessionId: id, void: true } }));
-  const moveGame = (gameId: string, courtId: string) =>
-    call(() => api(`/games/${gameId}/court`, { method: 'PATCH', json: { sessionId: id, courtId } }));
   const confirmPending = (gameId: string) =>
     call(() => api(`/games/${gameId}/confirm`, { method: 'POST', json: { sessionId: id } }));
   const resolvePending = (gameId: string) => {
@@ -368,35 +382,62 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
                     teamB={c.teamB}
                     onPlayerClick={(p) => setSwapOut({ gameId: c.gameId!, outId: p.id, name: p.name })}
                     footer={(
-                      <Stack spacing={1}>
-                        <Stack direction="row" spacing={1}>
+                      <Stack spacing={1.25}>
+                        <Stack direction="row" spacing={1.25}>
                           <Button
                             fullWidth variant="contained"
-                            sx={{ bgcolor: TEAM_BLUE, color: '#fff', '&:hover': { bgcolor: '#2563eb' } }}
+                            sx={{
+                              bgcolor: '#2f6b2b', color: '#fff', fontWeight: 700, py: 1.1,
+                              '&:hover': { bgcolor: '#24551f' },
+                            }}
                             onClick={() => setScoreFor({ gameId: c.gameId!, winner: 'A' })}
                           >
                             Team 1 Wins
                           </Button>
                           <Button
                             fullWidth variant="contained"
-                            sx={{ bgcolor: TEAM_ORANGE, color: '#fff', '&:hover': { bgcolor: '#d97706' } }}
+                            sx={{
+                              bgcolor: '#d1913c', color: '#fff', fontWeight: 700, py: 1.1,
+                              '&:hover': { bgcolor: '#b87f2f' },
+                            }}
                             onClick={() => setScoreFor({ gameId: c.gameId!, winner: 'B' })}
                           >
                             Team 2 Wins
                           </Button>
                         </Stack>
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Stack direction="row" spacing={1.5} alignItems="center">
                           {c.assignmentType === 'manual' && <Chip size="small" color="error" label="manual" />}
-                          <Button size="small" color="error" onClick={() => voidGame(c.gameId!)}>Void</Button>
-                          <Select
-                            size="small" displayEmpty value="" sx={{ ml: 'auto', minWidth: 140 }}
-                            onChange={(e) => e.target.value && moveGame(c.gameId!, e.target.value)}
+                          <Button
+                            size="small"
+                            sx={{ color: '#a04a35', fontWeight: 800, minWidth: 0 }}
+                            onClick={() =>
+                              setConfirm({
+                                title: `Void the game on Court ${c.number}?`,
+                                message: 'The game ends with no result — no scores and no rating changes. All four players go back into the queue.',
+                                confirmLabel: 'Void game',
+                                onConfirm: () => void voidGame(c.gameId!),
+                              })
+                            }
                           >
-                            <MenuItem value="">Move to court…</MenuItem>
-                            {board.courts.filter((o) => !o.gameId && o.courtId !== c.courtId).map((o) => (
-                              <MenuItem key={o.courtId} value={o.courtId}>Court {o.number}</MenuItem>
-                            ))}
-                          </Select>
+                            Void
+                          </Button>
+                          <Button
+                            size="small" variant="outlined" startIcon={<DeleteOutlineIcon />}
+                            sx={{
+                              color: '#5a6b56', fontWeight: 700, borderColor: 'rgba(17,24,39,0.15)',
+                              '&:hover': { borderColor: '#cfe3c6', bgcolor: '#f2f8ef' },
+                            }}
+                            onClick={() =>
+                              setConfirm({
+                                title: `Remove Court ${c.number}?`,
+                                message: 'The current game will be voided and its players return to the queue. Other courts refill automatically.',
+                                confirmLabel: 'Remove court',
+                                onConfirm: () => void call(() => api(`/sessions/${id}/courts/${c.courtId}`, { method: 'DELETE' })),
+                              })
+                            }
+                          >
+                            Remove court
+                          </Button>
                         </Stack>
                       </Stack>
                     )}
@@ -422,11 +463,14 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
                         <Chip size="small" label="OPEN" variant="outlined" sx={{ height: 22, fontWeight: 700 }} />
                         <IconButton
                           size="small" title="Remove court"
-                          onClick={() => {
-                            if (window.confirm(`Remove Court ${c.number} from this session?`)) {
-                              void call(() => api(`/sessions/${id}/courts/${c.courtId}`, { method: 'DELETE' }));
-                            }
-                          }}
+                          onClick={() =>
+                            setConfirm({
+                              title: `Remove Court ${c.number}?`,
+                              message: 'The court is detached from this session. You can add it back any time with “+ Add court”.',
+                              confirmLabel: 'Remove court',
+                              onConfirm: () => void call(() => api(`/sessions/${id}/courts/${c.courtId}`, { method: 'DELETE' })),
+                            })
+                          }
                         >
                           ✕
                         </IconButton>
@@ -457,38 +501,49 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
 
             {/* ── add court ──────────────────────────────────────── */}
             <Grid size={{ xs: 12, sm: 6 }}>
-              <Card
-                sx={{
-                  borderStyle: 'dashed', minHeight: 120, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center', opacity: 0.85,
-                }}
-              >
-                <Stack alignItems="center" spacing={1} py={2}>
-                  <Typography variant="body2" color="text.secondary">Need more space?</Typography>
-                  <Button
-                    variant="contained" color="success"
-                    onClick={() => call(() => api(`/sessions/${id}/courts`, { method: 'POST' }))}
+              {(() => {
+                const atFreeLimit =
+                  !!club && !club.venuePro && board.courts.length >= (club.freeCourtLimit ?? 4);
+                return (
+                  <Card
+                    sx={{
+                      borderStyle: 'dashed', minHeight: 120, height: '100%', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', opacity: 0.9,
+                      boxSizing: 'border-box',
+                    }}
                   >
-                    + Add court
-                  </Button>
-                </Stack>
-              </Card>
+                    <Stack alignItems="center" spacing={1} py={2} px={2}>
+                      <Typography variant="body2" color="text.secondary">
+                        {atFreeLimit
+                          ? `Free plan runs up to ${club?.freeCourtLimit ?? 4} courts`
+                          : 'Need more space?'}
+                      </Typography>
+                      <Button
+                        variant="contained" color="success" disabled={atFreeLimit}
+                        onClick={() => call(() => api(`/sessions/${id}/courts`, { method: 'POST' }))}
+                      >
+                        + Add court
+                      </Button>
+                      {atFreeLimit && (
+                        <Chip
+                          size="small" clickable component="a" href="/admin"
+                          label="⭐ Upgrade to Pro to add more courts"
+                          sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800 }}
+                        />
+                      )}
+                    </Stack>
+                  </Card>
+                );
+              })()}
             </Grid>
 
             {/* ── next match preview ─────────────────────────────── */}
             {board.nextMatch && (
-              <Grid size={12}>
-                <CourtCard
-                  title="Up next" chipLabel="Next match"
-                  palette={club?.theme}
-                  teamA={board.nextMatch.teamA}
-                  teamB={board.nextMatch.teamB}
-                  headerRight={<Chip size="small" label="Auto" color="success" sx={{ height: 22, fontWeight: 700 }} />}
-                  footer={(
-                    <Typography variant="caption" color="text.secondary">
-                      Starts automatically when a court frees up
-                    </Typography>
-                  )}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <UpNextCard
+                  title="Up next" chipLabel="Next match" rightLabel="Auto-matched"
+                  players={[...board.nextMatch.teamA, ...board.nextMatch.teamB]}
+                  footer="Starts when a court frees up"
                 />
               </Grid>
             )}
@@ -516,10 +571,18 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
                     Games · Partners
                   </Typography>
                 </Stack>
+                <TextField
+                  size="small" fullWidth placeholder="Search queue…"
+                  value={queueSearch} onChange={(e) => setQueueSearch(e.target.value)}
+                  sx={{ mt: 1.25, '& .MuiOutlinedInput-root': { bgcolor: '#ffffff', borderRadius: '10px' } }}
+                />
               </Box>
 
               <Box sx={{ maxHeight: 520, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                {board.waiting.map((p, i) => (
+                {board.waiting
+                  .map((p, i) => ({ p, i }))
+                  .filter(({ p }) => matches(p.name, queueSearch))
+                  .map(({ p, i }) => (
                   <QueueRow
                     key={p.id}
                     player={p}
@@ -551,7 +614,14 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
                     )}
                   />
                 ))}
-                {board.players.filter((p) => p.status === 'paused').map((p) => (
+                {queueSearch.trim() &&
+                  !board.waiting.some((p) => matches(p.name, queueSearch)) &&
+                  board.waiting.length > 0 && (
+                  <Typography sx={{ py: 2, textAlign: 'center', color: 'rgba(28,42,26,0.4)', fontSize: '0.82rem' }}>
+                    No one in the queue matches “{queueSearch.trim()}”
+                  </Typography>
+                )}
+                {board.players.filter((p) => p.status === 'paused' && matches(p.name, queueSearch)).map((p) => (
                   <Stack
                     key={p.id} direction="row" alignItems="center" spacing={1.25}
                     sx={{
@@ -698,6 +768,9 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
         </Grid>
       </Grid>
 
+      {/* ── confirmation modal ─────────────────────────────────── */}
+      <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
+
       {/* ── edit player dialog ─────────────────────────────────── */}
       <Dialog open={!!editPlayer} onClose={() => setEditPlayer(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Edit player</DialogTitle>
@@ -728,11 +801,16 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
       </Dialog>
 
       {/* ── assign-from-queue dialog (tap an open slot) ────────── */}
-      <Dialog open={!!assignFor} onClose={() => setAssignFor(null)} maxWidth="xs" fullWidth>
+      <Dialog open={!!assignFor} onClose={() => { setAssignFor(null); setDialogSearch(''); }} maxWidth="xs" fullWidth>
         <DialogTitle>
           Fill {assignFor?.team === 'A' ? 'Team 1' : 'Team 2'} slot
         </DialogTitle>
         <DialogContent>
+          <TextField
+            size="small" fullWidth autoFocus placeholder="Search the queue…"
+            value={dialogSearch} onChange={(e) => setDialogSearch(e.target.value)}
+            sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { bgcolor: '#f7faf5', borderRadius: '10px' } }}
+          />
           <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2f5d2b', mb: 1 }}>
             Assign from queue
           </Typography>
@@ -740,7 +818,7 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
             {board.waiting
               .filter((w) => {
                 const p = assignFor ? pending[assignFor.courtId] : undefined;
-                return !p || (!p.A.includes(w.id) && !p.B.includes(w.id));
+                return (!p || (!p.A.includes(w.id) && !p.B.includes(w.id))) && matches(w.name, dialogSearch);
               })
               .map((w) => (
                 <Box
@@ -748,6 +826,7 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
                   onClick={() => {
                     if (assignFor) addPending(assignFor.courtId, w.id, assignFor.team);
                     setAssignFor(null);
+                    setDialogSearch('');
                   }}
                   sx={{
                     display: 'flex', alignItems: 'center', gap: 1.25, width: '100%',
@@ -770,22 +849,27 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAssignFor(null)}>Cancel</Button>
+          <Button onClick={() => { setAssignFor(null); setDialogSearch(''); }}>Cancel</Button>
         </DialogActions>
       </Dialog>
 
       {/* ── swap player dialog ─────────────────────────────────── */}
-      <Dialog open={!!swapOut} onClose={() => setSwapOut(null)} maxWidth="xs" fullWidth>
+      <Dialog open={!!swapOut} onClose={() => { setSwapOut(null); setDialogSearch(''); }} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ fontWeight: 800, pb: 0.5 }}>Swap out {swapOut?.name}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)' }} mb={2}>
+          <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)' }} mb={1.5}>
             Pick a replacement — the change is logged as a manual override.
           </Typography>
+          <TextField
+            size="small" fullWidth autoFocus placeholder="Search the queue…"
+            value={dialogSearch} onChange={(e) => setDialogSearch(e.target.value)}
+            sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { bgcolor: '#f7faf5', borderRadius: '10px' } }}
+          />
           <Typography sx={{ fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2f5d2b', mb: 1 }}>
             Assign from queue
           </Typography>
           <Stack spacing={0.75}>
-            {board.waiting.map((w) => (
+            {board.waiting.filter((w) => matches(w.name, dialogSearch)).map((w) => (
               <Box
                 key={w.id} component="button" onClick={() => swapIn(w.id)}
                 sx={{
@@ -809,7 +893,7 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSwapOut(null)}>Cancel</Button>
+          <Button onClick={() => { setSwapOut(null); setDialogSearch(''); }}>Cancel</Button>
         </DialogActions>
       </Dialog>
 

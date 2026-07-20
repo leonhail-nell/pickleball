@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { api, getUser, clearAuth } from '@/lib/api';
 import { TopNav } from '@/components/nav';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, LinearProgress, MenuItem, Select,
+  Alert, Box, Button, Card, CardContent, Chip, MenuItem, Select,
   Stack, TextField, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import TvIcon from '@mui/icons-material/Tv';
 import SportsTennisIcon from '@mui/icons-material/SportsTennis';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { ConfirmDialog, type ConfirmState } from '@/components/confirm-dialog';
 
 interface SessionRow {
   id: string;
@@ -103,14 +104,22 @@ export default function Sessions() {
     }
   }
 
-  async function deleteSession(id: string, title: string) {
-    if (!window.confirm(`Delete "${title}" and all its games, sign-ups, and fees? This cannot be undone.`)) return;
-    try {
-      await api(`/sessions/${id}`, { method: 'DELETE' });
-      setSessions(await api<SessionRow[]>('/sessions'));
-    } catch (e) {
-      setError((e as Error).message);
-    }
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+
+  function deleteSession(id: string, title: string) {
+    setConfirm({
+      title: `Delete “${title}”?`,
+      message: 'All of its games, sign-ups, and fees are permanently deleted. This cannot be undone.',
+      confirmLabel: 'Delete session',
+      onConfirm: async () => {
+        try {
+          await api(`/sessions/${id}`, { method: 'DELETE' });
+          setSessions(await api<SessionRow[]>('/sessions'));
+        } catch (e) {
+          setError((e as Error).message);
+        }
+      },
+    });
   }
 
   async function signUp(id: string) {
@@ -124,35 +133,48 @@ export default function Sessions() {
     }
   }
 
-  const statusColor = (s: string) =>
-    s === 'LIVE' ? 'success' : s === 'CLOSED' ? 'default' : 'secondary';
+  /** Design-system status chip colors. */
+  const statusSx = (st: string) =>
+    st === 'LIVE'
+      ? { bgcolor: '#4c9a44', color: '#ffffff' }
+      : st === 'CLOSED'
+        ? { bgcolor: '#e8ebe6', color: '#5a6b56' }
+        : { bgcolor: '#e2f2dc', color: '#2f6b2b' };
 
   return (
     <>
     <TopNav />
-    <Box sx={{ maxWidth: 1100, mx: 'auto', p: 3 }}>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
+      <Stack direction="row" spacing={1.25} alignItems="baseline" mb={2}>
+        <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Sessions</Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}>
+          {isHost ? 'create & manage play sessions' : 'join an open play near you'}
+        </Typography>
+      </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
 
       {isHost && (
-        <Card sx={{ mb: 2 }}>
-          <CardContent>
+        <Card sx={{ mb: 2.5 }}>
+          <CardContent sx={{ p: 2.5 }}>
             <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
               <TextField
-                size="small" label="Event title" sx={{ minWidth: 220 }}
+                size="small" placeholder="Event title" sx={{ flex: 1, minWidth: 220 }}
                 value={title} onChange={(e) => setTitle(e.target.value)}
-                placeholder="Friday Night Open Play"
               />
               <TextField
-                size="small" label="₱ / player" sx={{ width: 110 }} inputMode="numeric"
-                value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0"
+                size="small" placeholder="₱ / player" sx={{ width: 130 }} inputMode="numeric"
+                value={price} onChange={(e) => setPrice(e.target.value)}
               />
               <Select size="small" value={tier} onChange={(e) => setTier(e.target.value)}>
                 {Object.entries(TIERS).map(([k, t]) => (
                   <MenuItem key={k} value={k}>{t.label}</MenuItem>
                 ))}
               </Select>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={createSession}>
+              <Button
+                variant="contained" startIcon={<AddIcon />} onClick={createSession}
+                sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' }, whiteSpace: 'nowrap' }}
+              >
                 Create session (now, all courts)
               </Button>
             </Stack>
@@ -160,27 +182,33 @@ export default function Sessions() {
         </Card>
       )}
 
-      <Stack spacing={2}>
+      <Stack spacing={2.5}>
         {sessions.map((s) => {
           const duration = Math.round(
             (new Date(s.endsAt).getTime() - new Date(s.startsAt).getTime()) / 3600_000,
           );
+          const full = s._count.signups >= s.capacity;
+          const fillPct = Math.min(100, (s._count.signups / s.capacity) * 100);
           return (
             <Card key={s.id}>
-              <CardContent>
-                <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2}>
+              <CardContent sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2.5}>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                      <Typography variant="h6" fontWeight={800} noWrap>
+                    <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <Typography variant="h5" fontWeight={800} noWrap sx={{ letterSpacing: '-0.02em' }}>
                         {s.title || 'Open Play'}
                       </Typography>
-                      <Chip size="small" label={s.status} color={statusColor(s.status)} />
                       <Chip
-                        size="small" color="warning"
-                        label={s.tierMin != null ? `${s.tierMin}–${s.tierMax ?? '∞'}` : 'All Levels'}
+                        size="small" label={s.status}
+                        sx={{ ...statusSx(s.status), fontWeight: 800, letterSpacing: '0.04em', height: 24 }}
+                      />
+                      <Chip
+                        size="small"
+                        label={s.tierMin != null ? `${s.tierMin} – ${s.tierMax ?? '∞'}` : 'All Levels'}
+                        sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800, height: 24 }}
                       />
                     </Stack>
-                    <Typography color="text.secondary" variant="body2" mt={0.5}>
+                    <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)', mt: 0.75 }}>
                       {new Date(s.startsAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                       {' · '}
                       {new Date(s.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
@@ -189,66 +217,80 @@ export default function Sessions() {
                       {` · ${duration}h`}
                       {s.organizer ? ` · hosted by ${s.organizer}` : ''}
                     </Typography>
-                    <Box mt={1} sx={{ maxWidth: 320 }}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min(100, (s._count.signups / s.capacity) * 100)}
-                        color={s._count.signups >= s.capacity ? 'error' : 'success'}
-                        sx={{ height: 6, borderRadius: 3 }}
-                      />
-                      <Typography variant="caption" color="text.secondary" noWrap display="block">
+                    <Box sx={{ mt: 1.75, maxWidth: 640 }}>
+                      <Box sx={{ height: 7, borderRadius: 999, bgcolor: 'rgba(28,42,26,0.10)', overflow: 'hidden' }}>
+                        <Box
+                          sx={{
+                            width: `${fillPct}%`, height: '100%', borderRadius: 999,
+                            bgcolor: full ? '#e2634a' : '#4c9a44',
+                          }}
+                        />
+                      </Box>
+                      <Typography variant="body2" fontWeight={700} sx={{ mt: 0.75, color: '#1c2a1a' }}>
                         {Math.min(s._count.signups, s.capacity)}/{s.capacity} registered
                         {s._count.signups > s.capacity ? ` · +${s._count.signups - s.capacity} walk-ins` : ''}
                       </Typography>
                     </Box>
-                    <Stack direction="row" spacing={0.75} mt={1} flexWrap="wrap" useFlexGap>
-                      <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 1, mr: 0.5 }}>
+                    <Stack direction="row" spacing={0.75} mt={1.75} alignItems="center" flexWrap="wrap" useFlexGap>
+                      <Typography variant="caption" sx={{ letterSpacing: '0.1em', fontWeight: 700, color: 'rgba(28,42,26,0.45)', mr: 0.5 }}>
                         COURTS
                       </Typography>
                       {s.courts.map((c) => (
-                        <Chip key={c.court.id} size="small" variant="outlined" label={`#${c.court.number}`} sx={{ height: 20 }} />
+                        <Chip
+                          key={c.court.id} size="small" label={`#${c.court.number}`}
+                          sx={{
+                            height: 26, fontWeight: 800, bgcolor: '#eef4e9',
+                            border: '1px solid #dbe8d3', color: '#2f5d2b',
+                          }}
+                        />
                       ))}
                     </Stack>
                   </Box>
 
-                  <Stack alignItems="flex-end" spacing={1} justifyContent="space-between">
-                    <Typography variant="h6" fontWeight={800}>
+                  <Stack alignItems="flex-end" spacing={2} sx={{ ml: 'auto' }}>
+                    <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
                       {s.priceCents > 0 ? `₱${(s.priceCents / 100).toFixed(0)}` : 'Free'}
-                      <Typography component="span" variant="caption" color="text.secondary"> /player</Typography>
+                      <Typography component="span" variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}> /player</Typography>
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="flex-end">
-                      <Button variant="outlined" size="small" href={`/session/${s.id}`}>
+                      <Button variant="outlined" href={`/session/${s.id}`}>
                         Details
                       </Button>
                       {s.status !== 'CLOSED' && (
                         mySignups[s.id] ? (
-                          <Button variant="contained" size="small" disabled>
+                          <Button variant="contained" disabled>
                             {mySignups[s.id] === 'CHECKED_IN' ? 'Checked in ✓'
                               : mySignups[s.id] === 'WAITLISTED' ? 'Waitlisted'
                               : 'Joined ✓'}
                           </Button>
                         ) : (
-                          <Button variant="contained" size="small" onClick={() => signUp(s.id)}>
+                          <Button
+                            variant="contained" onClick={() => signUp(s.id)}
+                            sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}
+                          >
                             Join Now
                           </Button>
                         )
                       )}
                       {s.status === 'LIVE' && (
-                        <Button variant="outlined" size="small" startIcon={<TvIcon />} href={`/board/${s.id}`}>
+                        <Button variant="outlined" startIcon={<TvIcon />} href={`/board/${s.id}`}>
                           Board
                         </Button>
                       )}
                       {s.status !== 'CLOSED' && mySignups[s.id] && (
-                        <Button variant="outlined" size="small" href={`/play/${s.id}`}>My view</Button>
+                        <Button variant="outlined" href={`/play/${s.id}`}>My view</Button>
                       )}
                       {canManage(s) && s.status !== 'CLOSED' && (
-                        <Button variant="contained" size="small" color="secondary" startIcon={<SportsTennisIcon />} href={`/host/${s.id}`}>
+                        <Button
+                          variant="contained" startIcon={<SportsTennisIcon />} href={`/host/${s.id}`}
+                          sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}
+                        >
                           {s.status === 'LIVE' ? 'Host' : 'Start'}
                         </Button>
                       )}
                       {canManage(s) && s.status !== 'LIVE' && (
                         <Button
-                          variant="outlined" size="small" color="error" startIcon={<DeleteOutlineIcon />}
+                          variant="outlined" color="error" startIcon={<DeleteOutlineIcon />}
                           onClick={() => deleteSession(s.id, s.title || 'Open Play')}
                         >
                           Delete
@@ -265,6 +307,8 @@ export default function Sessions() {
           <Typography color="text.secondary">No sessions yet.</Typography>
         )}
       </Stack>
+
+      <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />
     </Box>
     </>
   );

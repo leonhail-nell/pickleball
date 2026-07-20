@@ -112,52 +112,60 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: 3 }}>
           <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2}>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="overline" color="text.secondary">Open Play</Typography>
-              <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.15 }}>
-                {meta.title}
-              </Typography>
-              {meta.organizer && (
-                <Typography color="text.secondary" mt={0.5}>by {meta.organizer}</Typography>
-              )}
-              <Stack direction="row" spacing={1} mt={1.5} flexWrap="wrap" useFlexGap>
-                <Chip size="small" label={level} color="warning" />
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+                  {meta.title}
+                </Typography>
                 <Chip
-                  size="small" icon={<CalendarMonthIcon />}
-                  label={new Date(meta.startsAt).toLocaleDateString(undefined, {
-                    weekday: 'short', month: 'short', day: 'numeric',
-                  })}
+                  size="small" label={meta.status}
+                  sx={{
+                    fontWeight: 800, letterSpacing: '0.04em', height: 24,
+                    ...(meta.status === 'LIVE'
+                      ? { bgcolor: '#4c9a44', color: '#ffffff' }
+                      : meta.status === 'CLOSED'
+                        ? { bgcolor: '#e8ebe6', color: '#5a6b56' }
+                        : { bgcolor: '#e2f2dc', color: '#2f6b2b' }),
+                  }}
                 />
                 <Chip
-                  size="small" icon={<AccessTimeIcon />}
-                  label={`${new Date(meta.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} – ${new Date(meta.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · ${duration}h`}
-                />
-                <Chip
-                  size="small" icon={<GroupsIcon />}
-                  label={spotsLeft > 0 ? `${spotsLeft} spots left` : 'Full'}
-                  color={spotsLeft > 0 ? 'default' : 'error'}
+                  size="small" label={level}
+                  sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800, height: 24 }}
                 />
               </Stack>
-              <Box mt={2} sx={{ maxWidth: 380 }}>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(100, (meta._count.signups / meta.capacity) * 100)}
-                  color={spotsLeft === 0 ? 'error' : 'success'}
-                  sx={{ height: 8, borderRadius: 4 }}
-                />
-                <Typography variant="caption" color="text.secondary" noWrap display="block">
+              <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)', mt: 0.75 }}>
+                {new Date(meta.startsAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                {' · '}
+                {new Date(meta.startsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                {' – '}
+                {new Date(meta.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                {` · ${duration}h`}
+                {meta.organizer ? ` · hosted by ${meta.organizer}` : ''}
+              </Typography>
+              <Box sx={{ mt: 1.75, maxWidth: 520 }}>
+                <Box sx={{ height: 7, borderRadius: 999, bgcolor: 'rgba(28,42,26,0.10)', overflow: 'hidden' }}>
+                  <Box
+                    sx={{
+                      width: `${Math.min(100, (meta._count.signups / meta.capacity) * 100)}%`,
+                      height: '100%', borderRadius: 999,
+                      bgcolor: spotsLeft === 0 ? '#e2634a' : '#4c9a44',
+                    }}
+                  />
+                </Box>
+                <Typography variant="body2" fontWeight={700} sx={{ mt: 0.75, color: '#1c2a1a' }}>
                   {Math.min(meta._count.signups, meta.capacity)}/{meta.capacity} registered
                   {meta._count.signups > meta.capacity ? ` · +${meta._count.signups - meta.capacity} walk-ins` : ''}
+                  {spotsLeft > 0 && meta.status !== 'CLOSED' ? ` · ${spotsLeft} spots left` : ''}
                 </Typography>
               </Box>
             </Box>
             <Stack alignItems="flex-end" spacing={1.5}>
-              <Typography variant="h4" fontWeight={800}>
+              <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
                 {price}
-                <Typography component="span" color="text.secondary" variant="body2"> / player</Typography>
+                <Typography component="span" variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}> /player</Typography>
               </Typography>
               {meta.status === 'CLOSED' ? (
-                <Chip label="Thanks for playing! 🏓" />
+                <Chip label="Thanks for playing! 🏓" sx={{ bgcolor: '#e2f2dc', color: '#2f6b2b', fontWeight: 700 }} />
               ) : mySignup ? (
                 <Button variant="contained" size="large" disabled>
                   {mySignup.status === 'CHECKED_IN' ? 'Checked in ✓'
@@ -165,25 +173,31 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                     : 'Joined ✓'}
                 </Button>
               ) : (
-                <Button variant="contained" size="large" onClick={join} disabled={spotsLeft === 0}>
+                <Button
+                  variant="contained" size="large" onClick={join} disabled={spotsLeft === 0 && meta.status === 'LIVE'}
+                  sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}
+                >
                   {spotsLeft === 0 ? 'Join Waitlist' : 'Join Now'}
                 </Button>
               )}
-              <Stack direction="row" spacing={1}>
-                <Button size="small" variant="outlined" startIcon={<ShareIcon />} onClick={shareResults}>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="flex-end">
+                <Button variant="outlined" startIcon={<ShareIcon />} onClick={shareResults}>
                   Share
                 </Button>
                 {meta.status === 'LIVE' && (
-                  <Button size="small" variant="outlined" startIcon={<TvIcon />} href={`/board/${id}`}>
-                    Live board
+                  <Button variant="outlined" startIcon={<TvIcon />} href={`/board/${id}`}>
+                    Board
                   </Button>
                 )}
                 {meta.status !== 'CLOSED' && mySignup && (
-                  <Button size="small" variant="outlined" href={`/play/${id}`}>My view</Button>
+                  <Button variant="outlined" href={`/play/${id}`}>My view</Button>
                 )}
                 {isHost && meta.status !== 'CLOSED' && (
-                  <Button size="small" variant="contained" href={`/host/${id}`}>
-                    {meta.status === 'LIVE' ? 'Host console' : 'Start session'}
+                  <Button
+                    variant="contained" href={`/host/${id}`}
+                    sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}
+                  >
+                    {meta.status === 'LIVE' ? 'Host' : 'Start'}
                   </Button>
                 )}
               </Stack>
@@ -209,10 +223,15 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
             <Typography sx={{ whiteSpace: 'pre-wrap' }} color="text.secondary">
               {meta.description || 'Fair rotation open play: unbiased shuffle, fresh partners every game, equal court time — powered by PicklePlay.'}
             </Typography>
-            <Typography variant="subtitle2" mt={3} mb={1}>Courts</Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Typography variant="caption" sx={{ letterSpacing: '0.1em', fontWeight: 700, color: 'rgba(28,42,26,0.45)', display: 'block', mt: 3, mb: 1 }}>
+              COURTS
+            </Typography>
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
               {meta.courts.map((c) => (
-                <Chip key={c.court.id} label={`#${c.court.number}`} variant="outlined" />
+                <Chip
+                  key={c.court.id} size="small" label={`#${c.court.number}`}
+                  sx={{ height: 26, fontWeight: 800, bgcolor: '#eef4e9', border: '1px solid #dbe8d3', color: '#2f5d2b' }}
+                />
               ))}
             </Stack>
           </CardContent>

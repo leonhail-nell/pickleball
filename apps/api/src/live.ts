@@ -269,17 +269,33 @@ export class LiveSession {
     await this.fillCourts(); // broadcasts
   }
 
-  /** Host: detach an idle court from this session. */
+  /** Host: detach a court from this session. A live game on it is voided
+   *  first (players go back to the queue) and other courts refill. */
   async removeCourt(courtId: string, actorId: string): Promise<void> {
     const court = this.courts.get(courtId);
     if (!court) throw new Error('court is not attached to this session');
-    if (court.gameId) throw new Error('finish or move the game on this court first');
+    if (court.gameId) {
+      const gameId = court.gameId;
+      const game = await prisma.game.findUniqueOrThrow({
+        where: { id: gameId },
+        include: { players: true },
+      });
+      const ids = (game.players as GP[]).map((p) => p.userId);
+      this.engine.voidGame(ids, Date.now());
+      await prisma.game.update({
+        where: { id: gameId },
+        data: { status: 'VOID', endedAt: new Date() },
+      });
+      await this.audit('game_void', actorId, { gameId, reason: 'court_removed' });
+      Object.assign(court, { gameId: null, teamA: [], teamB: [], startedAt: null, assignmentType: null });
+    }
     this.courts.delete(courtId);
     await prisma.sessionCourt.delete({
       where: { sessionId_courtId: { sessionId: this.sessionId, courtId } },
     });
     await this.audit('court_removed', actorId, { courtId, number: court.number });
-    this.broadcast();
+    this.recomputePreview();
+    await this.fillCourts(); // reassign freed players; broadcasts
   }
 
   /** Host: pause/resume auto-rotation (water break, announcements…). */

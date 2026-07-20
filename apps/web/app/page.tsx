@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api, getUser } from '@/lib/api';
 import { PaddleLogo } from '@/components/logo';
-import { CourtCard, QueueChip, TEAM_BLUE, TEAM_ORANGE } from '@/components/board';
+import { CourtCard, QueueChip } from '@/components/board';
 import {
   Box, Button, Card, CardContent, Chip, Container, Divider, Stack, Typography,
 } from '@mui/material';
@@ -192,8 +192,8 @@ export default function Landing() {
                     teamB={m.b}
                     footer={(
                       <Stack direction="row" spacing={1}>
-                        <Button fullWidth size="small" sx={{ bgcolor: TEAM_BLUE, color: '#fff', pointerEvents: 'none' }}>Team 1 Wins</Button>
-                        <Button fullWidth size="small" sx={{ bgcolor: TEAM_ORANGE, color: '#fff', pointerEvents: 'none' }}>Team 2 Wins</Button>
+                        <Button fullWidth size="small" sx={{ bgcolor: '#2f6b2b', color: '#fff', fontWeight: 700, pointerEvents: 'none' }}>Team 1 Wins</Button>
+                        <Button fullWidth size="small" sx={{ bgcolor: '#d1913c', color: '#fff', fontWeight: 700, pointerEvents: 'none' }}>Team 2 Wins</Button>
                       </Stack>
                     )}
                   />
