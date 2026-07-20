@@ -313,13 +313,15 @@ export function CourtCard({
  * Used by the host waiting rail and the TV board "Next up" list.
  */
 export function QueueRow({
-  player, rank, actions, draggable = false, onDragStart,
+  player, rank, actions, draggable = false, onDragStart, highlight = false,
 }: {
   player: BoardPlayer;
   rank?: number;
   actions?: React.ReactNode;
   draggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
+  /** Emphasize this row (e.g. "that's you" on the player view). */
+  highlight?: boolean;
 }) {
   return (
     <Stack
@@ -327,7 +329,9 @@ export function QueueRow({
       draggable={draggable} onDragStart={onDragStart}
       className={draggable ? 'draggable' : undefined}
       sx={{
-        bgcolor: '#f4f7f2', border: '1px solid #e7efe2', borderRadius: '12px',
+        bgcolor: highlight ? '#e4f1dd' : '#f4f7f2',
+        border: `1px solid ${highlight ? '#a9d29a' : '#e7efe2'}`,
+        borderRadius: '12px',
         px: 1.25, py: 1, minWidth: 0,
         ...(draggable && { cursor: 'grab' }),
         '&:hover': { bgcolor: '#ecf4e8', borderColor: '#cfe3c6' },
@@ -348,6 +352,9 @@ export function QueueRow({
           </Typography>
         </Stack>
       </Box>
+      {highlight && (
+        <Chip size="small" label="You" sx={{ bgcolor: '#2f6b2b', color: '#fff', fontWeight: 800, height: 20 }} />
+      )}
       {player.deficit > 0 && <Chip size="small" label={`+${player.deficit}`} color="warning" sx={{ height: 20 }} />}
       {actions}
     </Stack>

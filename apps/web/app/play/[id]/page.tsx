@@ -7,7 +7,7 @@ import { useBoard } from '@/lib/useBoard';
 import { useClub } from '@/lib/useClub';
 import { TopNav } from '@/components/nav';
 import { PaddleLogo } from '@/components/logo';
-import { CourtCard, QueueChip, UpNextCard } from '@/components/board';
+import { CourtCard, QueueRow, UpNextCard } from '@/components/board';
 import {
   Alert, Box, Button, Card, CardContent, Chip, LinearProgress, Stack, TextField, Typography,
 } from '@mui/material';
@@ -104,15 +104,19 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
   return (
     <>
     <TopNav />
-    <Box sx={{ maxWidth: 480, mx: 'auto', p: 2 }}>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 2, md: 3 } }}>
       {(youreUp || myCourt) && (
         <Alert severity="success" sx={{ mb: 2, fontSize: '1.3rem' }}>
           🏓 YOU&apos;RE UP — COURT {youreUp?.court ?? myCourt?.number}
         </Alert>
       )}
 
-      <Typography variant="h5" gutterBottom>Hi {me.name} 👋</Typography>
+      <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }} gutterBottom>
+        Hi {me.name} 👋
+      </Typography>
 
+      <Grid container spacing={2.5}>
+        <Grid size={{ xs: 12, md: 4 }}>
       {!my ? (
         <Alert severity="info" sx={{ mb: 2 }}>
           You&apos;re not checked in to this session yet — scan the QR code at the venue.
@@ -131,11 +135,11 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                   </Typography>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <TextField
-                      size="small" sx={{ width: 72 }} label="Team 1" inputMode="numeric"
+                      size="small" sx={{ width: 92 }} label="Team 1" inputMode="numeric"
                       value={score.a} onChange={(e) => setScore({ ...score, a: e.target.value })}
                     />
                     <TextField
-                      size="small" sx={{ width: 72 }} label="Team 2" inputMode="numeric"
+                      size="small" sx={{ width: 92 }} label="Team 2" inputMode="numeric"
                       value={score.b} onChange={(e) => setScore({ ...score, b: e.target.value })}
                     />
                     <Button
@@ -241,21 +245,22 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
 
         </Stack>
       )}
+        </Grid>
 
-          <Box>
-            <Stack direction="row" spacing={1} alignItems="baseline" mb={1}>
-              <Typography fontWeight={800} sx={{ fontSize: '1.05rem', letterSpacing: '-0.01em' }}>
-                Courts
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.45)' }}>
-                live from the venue
-              </Typography>
-            </Stack>
-            <Stack spacing={1.5}>
-              {board.courts.map((c) => (
-                <Box key={c.courtId} sx={{ opacity: c.gameId ? 1 : 0.8 }}>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <Stack direction="row" spacing={1} alignItems="baseline" mb={1.5}>
+            <Typography fontWeight={800} sx={{ fontSize: '1.2rem', letterSpacing: '-0.01em' }}>
+              Courts
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.45)' }}>
+              live from the venue
+            </Typography>
+          </Stack>
+          <Grid container spacing={2}>
+            {board.courts.map((c) => (
+              <Grid key={c.courtId} size={{ xs: 12, sm: 6 }}>
+                <Box sx={{ opacity: c.gameId ? 1 : 0.8, height: '100%' }}>
                   <CourtCard
-                    size="sm"
                     palette={club?.theme}
                     number={c.number}
                     startedAt={c.gameId ? c.startedAt : null}
@@ -266,27 +271,41 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
                     ) : undefined}
                   />
                 </Box>
-              ))}
-              {board.nextMatch && (
+              </Grid>
+            ))}
+            {board.nextMatch && (
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <UpNextCard
                   title="Up next" chipLabel="Next match" rightLabel="Auto-matched"
                   players={[...board.nextMatch.teamA, ...board.nextMatch.teamB]}
                   footer="Starts when a court frees up"
                 />
-              )}
-            </Stack>
-            <Stack direction="row" spacing={1} mt={1.5} flexWrap="wrap" useFlexGap>
-              {board.waiting.map((p, i) => (
-                <QueueChip
-                  key={p.id} small
-                  player={p}
-                  prefix={`${i + 1}. `}
-                  highlight={p.id === me.id}
-                  warn={p.id !== me.id && p.deficit > 0}
-                />
-              ))}
-            </Stack>
-          </Box>
+              </Grid>
+            )}
+          </Grid>
+
+          <Stack direction="row" spacing={1} alignItems="baseline" mt={3} mb={1.5}>
+            <Typography fontWeight={800} sx={{ fontSize: '1.2rem', letterSpacing: '-0.01em' }}>
+              Waiting queue
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.45)' }}>
+              your spot updates live
+            </Typography>
+          </Stack>
+          <Grid container spacing={1.25}>
+            {board.waiting.map((p, i) => (
+              <Grid key={p.id} size={{ xs: 12, sm: 6 }}>
+                <QueueRow player={p} rank={i + 1} highlight={p.id === me.id} />
+              </Grid>
+            ))}
+            {!board.waiting.length && (
+              <Grid size={12}>
+                <Typography color="text.secondary">Everyone is playing.</Typography>
+              </Grid>
+            )}
+          </Grid>
+        </Grid>
+      </Grid>
     </Box>
     </>
   );
