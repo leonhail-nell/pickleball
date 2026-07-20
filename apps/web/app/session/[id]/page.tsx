@@ -12,7 +12,9 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TvIcon from '@mui/icons-material/Tv';
 import ShareIcon from '@mui/icons-material/Share';
-import { QueueChip } from '@/components/board';
+import { Stars, avatarSrcFor } from '@/components/board';
+import { Avatar } from '@mui/material';
+import Grid from '@mui/material/Grid2';
 
 interface Participant {
   id: string;
@@ -212,7 +214,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       {/* ── tabs ────────────────────────────────────────────────── */}
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
         <Tab label="Details" />
-        <Tab label={`Participants ${meta._count.signups}/${meta.capacity}`} />
+        <Tab label={`Participants ${meta._count.signups}`} />
         <Tab label="Leaderboard" />
       </Tabs>
 
@@ -246,21 +248,46 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 Log in to see the participant list.
               </Typography>
             )}
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Grid container spacing={1.25}>
               {participants.map((p) => (
-                <QueueChip
-                  key={p.id}
-                  player={{
-                    ...p.user,
-                    name: `${p.user.name}${p.status === 'CHECKED_IN' ? ' ✓' : p.status === 'WAITLISTED' ? ' · waitlist' : ''}`,
-                  }}
-                  highlight={p.status === 'CHECKED_IN'}
-                />
+                <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                  <Stack
+                    direction="row" alignItems="center" spacing={1.25}
+                    sx={{
+                      bgcolor: '#f4f7f2', border: '1px solid #e7efe2', borderRadius: '12px',
+                      px: 1.25, py: 1, minWidth: 0, height: '100%', boxSizing: 'border-box',
+                    }}
+                  >
+                    <Avatar
+                      src={avatarSrcFor(p.user)} alt={p.user.name}
+                      sx={{ width: 34, height: 34, bgcolor: '#d1e7c9', flexShrink: 0 }}
+                    />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography noWrap sx={{ fontSize: '0.88rem', fontWeight: 700 }}>
+                        {p.user.name}
+                      </Typography>
+                      <Stars value={p.user.rating} fontSize="0.62rem" />
+                    </Box>
+                    {p.status === 'CHECKED_IN' ? (
+                      <Chip
+                        size="small" label="✓ In"
+                        sx={{ bgcolor: '#e2f2dc', color: '#2f6b2b', fontWeight: 800, height: 22 }}
+                      />
+                    ) : p.status === 'WAITLISTED' ? (
+                      <Chip
+                        size="small" label="Waitlist"
+                        sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800, height: 22 }}
+                      />
+                    ) : null}
+                  </Stack>
+                </Grid>
               ))}
               {user && !participants.length && (
-                <Typography color="text.secondary" variant="body2">No sign-ups yet.</Typography>
+                <Grid size={12}>
+                  <Typography color="text.secondary" variant="body2">No sign-ups yet.</Typography>
+                </Grid>
               )}
-            </Stack>
+            </Grid>
           </CardContent>
         </Card>
       )}
