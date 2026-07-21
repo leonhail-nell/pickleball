@@ -112,7 +112,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
     <Box sx={{ maxWidth: 1000, mx: 'auto', p: { xs: 2, md: 3 } }}>
       {/* ── hero ────────────────────────────────────────────────── */}
       <Card sx={{ mb: 2 }}>
-        <CardContent sx={{ p: 3 }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
           <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2}>
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>

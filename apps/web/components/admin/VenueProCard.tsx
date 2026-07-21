@@ -47,14 +47,21 @@ export function VenueProCard({
         >
           <Box>
             <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
-              <Typography variant="h6" sx={{ color: club.venuePro ? "#fff" : undefined }}>
+              <Typography
+                variant="h6"
+                sx={{ color: club.venuePro ? "#fff" : undefined }}
+              >
                 Venue Pro
               </Typography>
               {club.venuePro ? (
                 <Chip
                   size="small"
                   label={`Active until ${new Date(club.venueProUntil!).toLocaleDateString()}`}
-                  sx={{ bgcolor: "rgba(255,255,255,0.25)", color: "#fff", fontWeight: 700 }}
+                  sx={{
+                    bgcolor: "rgba(255,255,255,0.25)",
+                    color: "#fff",
+                    fontWeight: 700,
+                  }}
                 />
               ) : (
                 <Chip size="small" label="Free plan" variant="outlined" />
@@ -62,7 +69,11 @@ export function VenueProCard({
             </Stack>
             <Typography
               variant="body2"
-              sx={{ color: club.venuePro ? "rgba(255,255,255,0.9)" : "text.secondary" }}
+              sx={{
+                color: club.venuePro
+                  ? "rgba(255,255,255,0.9)"
+                  : "text.secondary",
+              }}
             >
               {club.venuePro
                 ? "Unlimited courts unlocked. Thanks for supporting PicklePlay!"
@@ -77,7 +88,11 @@ export function VenueProCard({
               onChange={(e) => onClubName(e.target.value)}
               sx={
                 club.venuePro
-                  ? { "& .MuiOutlinedInput-root": { bgcolor: "rgba(255,255,255,0.9)" } }
+                  ? {
+                      "& .MuiOutlinedInput-root": {
+                        bgcolor: "rgba(255,255,255,0.9)",
+                      },
+                    }
                   : undefined
               }
             />
@@ -87,7 +102,11 @@ export function VenueProCard({
               onClick={onSaveName}
               sx={
                 club.venuePro
-                  ? { bgcolor: "#fff", color: "#15803d", "&:hover": { bgcolor: "#f0fdf4" } }
+                  ? {
+                      bgcolor: "#fff",
+                      color: "#15803d",
+                      "&:hover": { bgcolor: "#f0fdf4" },
+                    }
                   : undefined
               }
             >

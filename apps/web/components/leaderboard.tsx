@@ -49,7 +49,8 @@ export function Leaderboard({
           <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.45)' }}>by win rate</Typography>
         </Stack>
       )}
-      <Table size={dense ? 'small' : 'medium'}>
+      <Box sx={{ overflowX: 'auto' }}>
+      <Table size={dense ? 'small' : 'medium'} sx={{ minWidth: 360 }}>
         <TableHead>
           <TableRow>
             <TableCell sx={{ ...headSx, width: 52 }}>#</TableCell>
@@ -117,6 +118,7 @@ export function Leaderboard({
           )}
         </TableBody>
       </Table>
+      </Box>
 
       <Dialog open={!!history} onClose={() => setHistory(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{history?.name} — match history</DialogTitle>

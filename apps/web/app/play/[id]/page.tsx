@@ -4,7 +4,6 @@ import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, getUser, type Board } from '@/lib/api';
 import { useBoard } from '@/lib/useBoard';
-import { useClub } from '@/lib/useClub';
 import { TopNav } from '@/components/nav';
 import { PaddleLogo } from '@/components/logo';
 import { CourtCard, QueueRow, UpNextCard } from '@/components/board';
@@ -21,7 +20,6 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
   const { id } = use(params);
   const router = useRouter();
   const { board, setBoard, youreUp, error, setError } = useBoard(id);
-  const club = useClub();
   const [me, setMe] = useState<{ id: string; name: string } | null>(null);
   const [notifOk, setNotifOk] = useState(
     typeof Notification !== 'undefined' && Notification.permission === 'granted',
@@ -87,7 +85,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
     return (
       <>
       <TopNav />
-      <Box sx={{ maxWidth: 480, mx: 'auto', p: 3, textAlign: 'center' }}>
+      <Box sx={{ maxWidth: 480, mx: 'auto', p: { xs: 2, md: 3 }, textAlign: 'center' }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1.5 }}><PaddleLogo size={44} /></Box>
         <Typography variant="h6" gutterBottom>You&apos;re all set!</Typography>
         <Typography color="text.secondary">
@@ -261,7 +259,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
               <Grid key={c.courtId} size={{ xs: 12, sm: 6 }}>
                 <Box sx={{ opacity: c.gameId ? 1 : 0.8, height: '100%' }}>
                   <CourtCard
-                    palette={club?.theme}
+                    palette={board.clubTheme}
                     number={c.number}
                     startedAt={c.gameId ? c.startedAt : null}
                     teamA={c.teamA}

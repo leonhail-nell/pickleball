@@ -61,6 +61,15 @@ export function authRoutes(app: FastifyInstance) {
           role: organizer ? 'HOST' : 'PLAYER',
         },
       });
+      // organizers get their own club (seeded with 4 courts) right away
+      if (organizer) {
+        const club = await prisma.club.create({
+          data: { ownerId: user.id, name: `${user.name}'s Club` },
+        });
+        await prisma.court.createMany({
+          data: [1, 2, 3, 4].map((n) => ({ clubId: club.id, number: n, label: '' })),
+        });
+      }
       const token = app.jwt.sign({ id: user.id, role: user.role });
       return { token, user: { id: user.id, name: user.name, role: user.role, rating: user.rating, avatarUrl: user.avatarUrl ?? null } };
     },

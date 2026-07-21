@@ -2,7 +2,10 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '@pickleplay/db';
 import { hashPassword, requireRole, manageBlock, type AuthUser } from './auth.js';
-import { ensureSessionPayment, venueProActive, isClubMember, FREE_COURT_LIMIT } from './club.js';
+import {
+  ensureSessionPayment, venueProActive, isClubMemberOf, callerClub,
+  venueProActiveForClub, FREE_COURT_LIMIT,
+} from './club.js';
 import type { LiveSession, LiveSessionRegistry } from './live.js';
 
 const HOSTS = ['HOST', 'ADMIN'] as const;
@@ -71,20 +74,40 @@ async function computeStandings(sessionId: string) {
 }
 
 export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistry) {
+  /** Club ids the user can see private sessions for: their owned club + any
+   *  club they hold a membership in. */
+  async function memberClubIds(user: AuthUser & { name?: string }): Promise<Set<string>> {
+    const ids = new Set<string>();
+    if (['HOST', 'ADMIN'].includes(user.role)) {
+      const owned = await prisma.club.findUnique({ where: { ownerId: user.id }, select: { id: true } });
+      if (owned) ids.add(owned.id);
+    }
+    const memberships = await prisma.membership.findMany({ where: { userId: user.id }, select: { clubId: true } });
+    for (const m of memberships as { clubId: string | null }[]) if (m.clubId) ids.add(m.clubId);
+    return ids;
+  }
+
   // ── schedule ─────────────────────────────────────────────────────
-  // Private sessions are visible only to club members (staff or active
-  // members) and to the organizer who created them.
+  // Public sessions are visible to everyone; private ("members only") ones
+  // only to the creator and members of that session's club.
   app.get('/sessions', async (req) => {
     const user = req.user as AuthUser;
-    const member = await isClubMember(user);
-    return prisma.openSession.findMany({
-      where: member ? {} : { OR: [{ isPrivate: false }, { createdById: user.id }] },
+    const clubs = await memberClubIds(user);
+    const all = await prisma.openSession.findMany({
       orderBy: { startsAt: 'desc' },
       include: { courts: { include: { court: true } }, _count: { select: { signups: true } } },
     });
+    return (all as { isPrivate: boolean; clubId: string | null; createdById: string | null }[])
+      .filter((s) => !s.isPrivate || s.createdById === user.id || (s.clubId && clubs.has(s.clubId)));
   });
 
-  app.get('/courts', async () => prisma.court.findMany({ orderBy: { number: 'asc' } }));
+  // courts for the organizer's own club (used when creating/hosting sessions)
+  app.get('/courts', async (req) => {
+    const user = req.user as AuthUser & { name?: string };
+    if (!['HOST', 'ADMIN'].includes(user.role)) return [];
+    const club = await callerClub(user);
+    return prisma.court.findMany({ where: { clubId: club.id }, orderBy: { number: 'asc' } });
+  });
 
   // public landing-page stats
   app.get('/stats', async () => {
@@ -109,7 +132,7 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
     if (!s) return reply.code(404).send({ error: 'not found' });
     if (s.isPrivate) {
       const viewer = await req.jwtVerify<AuthUser>().catch(() => null);
-      const allowed = viewer && (viewer.id === s.createdById || (await isClubMember(viewer)));
+      const allowed = viewer && (viewer.id === s.createdById || (await isClubMemberOf(viewer, s.clubId)));
       if (!allowed) return reply.code(404).send({ error: 'not found' });
     }
     const { seed, engineState, qrToken, ...pub } = s as Record<string, unknown>;
@@ -180,17 +203,25 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
     { preHandler: requireRole(...HOSTS) },
     async (req, reply) => {
       const { startsAt, endsAt, capacity, courtIds, tierMin, tierMax } = req.body;
-      if (courtIds.length > FREE_COURT_LIMIT && !(await venueProActive())) {
+      const creator = req.user as AuthUser & { name?: string };
+      const club = await callerClub(creator);
+      if (courtIds.length > FREE_COURT_LIMIT && !venueProActiveForClub(club)) {
         return reply.code(402).send({
           error: `Free plan supports up to ${FREE_COURT_LIMIT} courts — start a Venue Pro trial in the club dashboard to run more.`,
         });
       }
+      // only this club's own courts may be used
+      const ownCourts = await prisma.court.findMany({
+        where: { id: { in: courtIds }, clubId: club.id }, select: { id: true },
+      });
+      const ownIds = (ownCourts as { id: string }[]).map((c) => c.id);
+      if (!ownIds.length) return reply.code(400).send({ error: 'no valid courts for your club' });
       const { title, description, organizer, priceCents, isPrivate } = req.body as {
         title?: string; description?: string; organizer?: string; priceCents?: number; isPrivate?: boolean;
       };
-      const creator = req.user as AuthUser;
       return prisma.openSession.create({
         data: {
+          clubId: club.id,
           title: title || 'Open Play',
           description: description ?? '',
           organizer: organizer ?? '',
@@ -203,7 +234,7 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
           status: 'OPEN',
           tierMin: tierMin ?? null,
           tierMax: tierMax ?? null,
-          courts: { create: courtIds.map((courtId) => ({ courtId })) },
+          courts: { create: ownIds.map((courtId) => ({ courtId })) },
         },
       });
     },
@@ -518,19 +549,28 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
       if (blocked) return reply.code(403).send({ error: blocked });
       const live = await registry.getOrRestore(req.params.id);
       if (!live) return reply.code(400).send({ error: 'session not live' });
-      if (live.courts.size >= FREE_COURT_LIMIT && !(await venueProActive())) {
+      const user = req.user as AuthUser & { name?: string };
+      const session = await prisma.openSession.findUniqueOrThrow({
+        where: { id: req.params.id }, select: { clubId: true },
+      });
+      const club = session.clubId
+        ? await prisma.club.findUnique({ where: { id: session.clubId } })
+        : await callerClub(user);
+      const proActive = club ? venueProActiveForClub(club as never) : false;
+      if (live.courts.size >= FREE_COURT_LIMIT && !proActive) {
         return reply.code(402).send({
           error: `Free plan supports up to ${FREE_COURT_LIMIT} courts — start a Venue Pro trial in the club dashboard to add more.`,
         });
       }
-      const user = req.user as AuthUser;
+      const clubId = session.clubId ?? club?.id ?? null;
+      // reuse an idle court in this club, else mint the next number for the club
       let court = await prisma.court.findFirst({
-        where: { isActive: true, sessions: { none: { sessionId: req.params.id } } },
+        where: { clubId, isActive: true, sessions: { none: { sessionId: req.params.id } } },
         orderBy: { number: 'asc' },
       });
       if (!court) {
-        const max = await prisma.court.aggregate({ _max: { number: true } });
-        court = await prisma.court.create({ data: { number: (max._max.number ?? 0) + 1 } });
+        const max = await prisma.court.aggregate({ where: { clubId }, _max: { number: true } });
+        court = await prisma.court.create({ data: { clubId, number: (max._max.number ?? 0) + 1 } });
       }
       await prisma.sessionCourt.create({
         data: { sessionId: req.params.id, courtId: court.id },

@@ -20,7 +20,6 @@ await app.register(jwt, { secret: JWT_SECRET });
 // (TV board, event detail, leaderboard, per-player match history)
 const isPublic = (req: { method: string; url: string }) => {
   if (req.url.startsWith('/auth/') || req.url === '/health' || req.url === '/stats') return true;
-  if (req.method === 'GET' && req.url === '/club') return true;
   if (req.method !== 'GET') return false;
   const path = req.url.split('?')[0];
   return (

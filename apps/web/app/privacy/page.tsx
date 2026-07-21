@@ -6,10 +6,10 @@ export default function PrivacyPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <TopNav />
-      <Box sx={{ maxWidth: 760, mx: 'auto', p: 3, width: '100%' }}>
+      <Box sx={{ maxWidth: 760, mx: 'auto', p: { xs: 2, md: 3 }, width: '100%' }}>
         <Typography variant="h4" fontWeight={800} mb={2}>Privacy Policy</Typography>
         <Card>
-          <CardContent sx={{ p: 3 }}>
+          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
             <Typography paragraph color="text.secondary">
               PicklePlay collects only what it needs to run open play: your name, email,
               skill rating, an optional profile photo, and your game results. This

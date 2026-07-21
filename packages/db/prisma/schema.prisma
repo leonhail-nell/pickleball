@@ -52,22 +52,44 @@ model User {
   payments     Payment[]
 }
 
+// Each organizer runs their own club (multi-tenant). A club owns its courts,
+// sessions, members, plans, Venue Pro subscription, and court theme.
+model Club {
+  id            String        @id @default(cuid())
+  name          String        @default("My Club")
+  ownerId       String        @unique // the organizer (HOST/ADMIN) who owns this club
+  venueProUntil DateTime?
+  theme         Json          @default("{}")
+  createdAt     DateTime      @default(now())
+  courts        Court[]
+  sessions      OpenSession[]
+  memberships   Membership[]
+  plans         Plan[]
+  proOrders     ProOrder[]
+}
+
 model Court {
   id       String        @id @default(cuid())
-  number   Int           @unique
+  clubId   String?       // owning club (null = legacy/global)
+  number   Int
   label    String        @default("")
   isActive Boolean       @default(true)
+  club     Club?         @relation(fields: [clubId], references: [id])
   sessions SessionCourt[]
   games    Game[]
+
+  @@unique([clubId, number])
 }
 
 model OpenSession {
   id           String        @id @default(cuid())
+  clubId       String?       // owning club
   title        String        @default("Open Play")
   description  String        @default("")
   organizer    String        @default("")
   createdById  String?       // owning organizer — only they (or an admin) can manage it
   isPrivate    Boolean       @default(false) // private = only club members can see it
+  club         Club?         @relation(fields: [clubId], references: [id])
   priceCents   Int           @default(0) // per-player fee, displayed on the event card
   startsAt     DateTime
   endsAt       DateTime
@@ -161,25 +183,30 @@ enum PaymentStatus {
 
 model Plan {
   id           String       @id @default(cuid())
+  clubId       String?      // owning club
   name         String
   priceCents   Int
   period       PlanPeriod   @default(MONTHLY)
   dropInFree   Boolean      @default(true) // active members skip drop-in fees
   isActive     Boolean      @default(true)
+  club         Club?        @relation(fields: [clubId], references: [id])
   memberships  Membership[]
 }
 
 model Membership {
   id       String      @id @default(cuid())
+  clubId   String?     // which club this user is a member of
   userId   String
   planId   String
   startsAt DateTime    @default(now())
   endsAt   DateTime
+  club     Club?       @relation(fields: [clubId], references: [id])
   user     User        @relation(fields: [userId], references: [id])
   plan     Plan        @relation(fields: [planId], references: [id])
   payments Payment[]
 
   @@index([userId, endsAt])
+  @@index([clubId])
 }
 
 model Payment {
@@ -217,6 +244,7 @@ enum ProOrderStatus {
 // Venue Pro purchases (Stripe card / GCash / Maya via PayMongo)
 model ProOrder {
   id          String         @id @default(cuid())
+  clubId      String?        // club this subscription is for
   provider    String         // STRIPE | GCASH | MAYA
   providerRef String?        @unique // gateway checkout-session id
   months      Int            @default(1)
@@ -225,6 +253,7 @@ model ProOrder {
   createdById String?
   createdAt   DateTime       @default(now())
   paidAt      DateTime?
+  club        Club?          @relation(fields: [clubId], references: [id])
 }
 
 model AuditEvent {

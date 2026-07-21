@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from 'react';
 import { api, type Standing } from '@/lib/api';
 import { useBoard } from '@/lib/useBoard';
-import { useClub } from '@/lib/useClub';
 import { CourtCard, UpNextCard, StatsBar, CoverageTile } from '@/components/board';
 import { Leaderboard } from '@/components/leaderboard';
 import { TopNav } from '@/components/nav';
@@ -18,7 +17,6 @@ import ShareIcon from '@mui/icons-material/Share';
 export default function BoardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { board, youreUp, error } = useBoard(id);
-  const club = useClub();
   const [standings, setStandings] = useState<Standing[]>([]);
 
   // refresh the leaderboard whenever the board changes (games finish)
@@ -32,7 +30,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   return (
     <>
     <TopNav />
-    <Box className="tv" sx={{ maxWidth: 1500, mx: 'auto', p: 3 }}>
+    <Box className="tv" sx={{ maxWidth: 1500, mx: 'auto', p: { xs: 2, md: 3 } }}>
       {youreUp && (
         <Alert severity="success" sx={{ mb: 2, fontSize: '1.4rem' }}>
           🏓 YOU&apos;RE UP — COURT {youreUp.court}
@@ -86,7 +84,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
                 number={c.number}
                 label={c.label || undefined}
                 startedAt={c.gameId ? c.startedAt : null}
-                palette={club?.theme}
+                palette={board.clubTheme}
                 teamA={c.teamA}
                 teamB={c.teamB}
                 headerRight={!c.gameId ? (

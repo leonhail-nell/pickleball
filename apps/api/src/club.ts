@@ -27,11 +27,16 @@ function sanitizeTheme(input: unknown): Record<string, string> | null {
 export async function ensureSessionPayment(sessionId: string, userId: string): Promise<void> {
   const session = await prisma.openSession.findUniqueOrThrow({
     where: { id: sessionId },
-    select: { priceCents: true },
+    select: { priceCents: true, clubId: true },
   });
   if (session.priceCents <= 0) return;
+  // members of *this session's club* on a drop-in-free plan are auto-waived
   const activeMembership = await prisma.membership.findFirst({
-    where: { userId, endsAt: { gt: new Date() }, plan: { dropInFree: true, isActive: true } },
+    where: {
+      userId, endsAt: { gt: new Date() },
+      ...(session.clubId ? { clubId: session.clubId } : {}),
+      plan: { dropInFree: true, isActive: true },
+    },
   });
   await prisma.payment.upsert({
     where: { userId_sessionId: { userId, sessionId } },
@@ -47,36 +52,69 @@ export async function ensureSessionPayment(sessionId: string, userId: string): P
 
 export const FREE_COURT_LIMIT = 4;
 
-export async function getClub() {
-  return prisma.clubConfig.upsert({
-    where: { id: 'club' },
-    update: {},
-    create: { id: 'club' },
-  });
-}
-
-export async function venueProActive(): Promise<boolean> {
-  const club = await getClub();
-  return !!club.venueProUntil && club.venueProUntil > new Date();
+interface Club {
+  id: string; name: string; ownerId: string;
+  venueProUntil: Date | null; theme: unknown;
 }
 
 /**
- * Club member = any registered user of this club. In this single-club app,
- * having an account is what makes you a member — no paid plan required.
- * Drives who can see "members-only" (private) sessions: every signed-in user
- * can, but anonymous visitors and shared public links cannot.
+ * The club owned by an organizer (HOST/ADMIN). Created lazily on first access,
+ * seeded with 4 courts so a brand-new organizer can run play immediately.
  */
-export async function isClubMember(user?: { id: string; role: string } | null): Promise<boolean> {
-  return !!user;
+export async function getOrCreateClubForOwner(user: { id: string; name?: string }): Promise<Club> {
+  const existing = await prisma.club.findUnique({ where: { ownerId: user.id } });
+  if (existing) return existing as Club;
+  const club = await prisma.club.create({
+    data: { ownerId: user.id, name: user.name ? `${user.name}'s Club` : 'My Club' },
+  });
+  // seed this club's own courts (numbers are unique within a club)
+  await prisma.court.createMany({
+    data: [1, 2, 3, 4].map((n) => ({ clubId: club.id, number: n, label: '' })),
+  });
+  return club as Club;
+}
+
+/** The club whose data a request operates on: the owner's club for organizers. */
+export async function callerClub(user: AuthUser & { name?: string }): Promise<Club> {
+  return getOrCreateClubForOwner(user);
+}
+
+export function venueProActiveForClub(club: Club): boolean {
+  return !!club.venueProUntil && club.venueProUntil > new Date();
+}
+
+/** Back-compat: Pro status for the caller's own club. */
+export async function venueProActive(user: AuthUser): Promise<boolean> {
+  return venueProActiveForClub(await callerClub(user));
+}
+
+/**
+ * Member of a specific club = the club owner, or a user with a membership
+ * record in that club (comp or paid). A self-registered user is NOT a member
+ * of someone else's club until that club adds them.
+ */
+export async function isClubMemberOf(
+  user: { id: string; role: string } | null | undefined,
+  clubId: string | null | undefined,
+): Promise<boolean> {
+  if (!user || !clubId) return false;
+  const club = await prisma.club.findUnique({ where: { id: clubId }, select: { ownerId: true } });
+  if (club?.ownerId === user.id) return true;
+  const m = await prisma.membership.findFirst({
+    where: { userId: user.id, clubId },
+    select: { id: true },
+  });
+  return !!m;
 }
 
 export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry) {
-  // ── club config & Venue Pro ────────────────────────────────────────
-  app.get('/club', async () => {
-    const club = await getClub();
+  // ── club config & Venue Pro (per-organizer club) ──────────────────
+  app.get('/club', { preHandler: requireRole(...HOSTS) }, async (req) => {
+    const club = await callerClub(req.user as AuthUser & { name?: string });
     return {
+      id: club.id,
       name: club.name,
-      venuePro: !!club.venueProUntil && club.venueProUntil > new Date(),
+      venuePro: venueProActiveForClub(club),
       venueProUntil: club.venueProUntil,
       freeCourtLimit: FREE_COURT_LIMIT,
       theme: (club.theme as Record<string, string> | null) ?? {},
@@ -92,20 +130,16 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     '/club',
     { preHandler: requireRole(...HOSTS) },
     async (req, reply) => {
-      await getClub();
-      // renaming the club stays admin-only; the Pro theme is open to organizers
-      if (req.body.name !== undefined && (req.user as AuthUser).role !== 'ADMIN') {
-        return reply.code(403).send({ error: 'only admins can rename the club' });
-      }
+      const club = await callerClub(req.user as AuthUser & { name?: string });
       let themePatch: Record<string, unknown> = {};
       if (req.body.theme !== undefined) {
-        if (!(await venueProActive())) {
+        if (!venueProActiveForClub(club)) {
           return reply.code(402).send({ error: 'Custom court themes are a Venue Pro feature — upgrade to unlock them.' });
         }
         themePatch = { theme: req.body.theme === null ? {} : (sanitizeTheme(req.body.theme) ?? {}) };
       }
-      return prisma.clubConfig.update({
-        where: { id: 'club' },
+      return prisma.club.update({
+        where: { id: club.id },
         data: {
           ...(req.body.name?.trim() ? { name: req.body.name.trim() } : {}),
           ...themePatch,
@@ -125,8 +159,10 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
       const origin = (req.headers.origin as string | undefined) ?? process.env.WEB_ORIGIN ?? 'http://localhost:3000';
       const label = `PicklePlay Venue Pro — ${months} month${months > 1 ? 's' : ''}`;
 
+      const club = await callerClub(req.user as AuthUser & { name?: string });
       const order = await prisma.proOrder.create({
         data: {
+          clubId: club.id,
           provider: provider.toUpperCase(),
           months,
           amountCents: amount,
@@ -204,8 +240,11 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     async (req, reply) => {
       const order = await prisma.proOrder.findUnique({ where: { id: req.params.orderId } });
       if (!order) return reply.code(404).send({ error: 'order not found' });
+      const club = await callerClub(req.user as AuthUser & { name?: string });
+      if (order.clubId && order.clubId !== club.id) {
+        return reply.code(403).send({ error: 'this order belongs to another club' });
+      }
       if (order.status === 'PAID') {
-        const club = await getClub();
         return { ok: true, venueProUntil: club.venueProUntil };
       }
       if (!order.providerRef) return reply.code(400).send({ error: 'order was never sent to the gateway' });
@@ -233,12 +272,11 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
 
       if (!paid) return reply.code(402).send({ error: 'Payment not completed yet — finish checkout and try again.' });
 
-      const club = await getClub();
       const base = club.venueProUntil && club.venueProUntil > new Date()
         ? new Date(club.venueProUntil)
         : new Date();
       base.setMonth(base.getMonth() + order.months);
-      await prisma.clubConfig.update({ where: { id: 'club' }, data: { venueProUntil: base } });
+      await prisma.club.update({ where: { id: club.id }, data: { venueProUntil: base } });
       await prisma.proOrder.update({
         where: { id: order.id },
         data: { status: 'PAID', paidAt: new Date() },
@@ -247,36 +285,40 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     },
   );
 
-  // 14-day Venue Pro trial — any organizer can start it for the club
+  // 14-day Venue Pro trial — starts it for the organizer's own club
   app.post('/club/venue-pro/trial', { preHandler: requireRole(...HOSTS) }, async (req, reply) => {
-    const club = await getClub();
-    if (club.venueProUntil && club.venueProUntil > new Date()) {
+    const club = await callerClub(req.user as AuthUser & { name?: string });
+    if (venueProActiveForClub(club)) {
       return reply.code(400).send({ error: 'Venue Pro is already active' });
     }
     const until = new Date();
     until.setDate(until.getDate() + 14);
-    return prisma.clubConfig.update({
-      where: { id: 'club' },
-      data: { venueProUntil: until },
+    return prisma.club.update({ where: { id: club.id }, data: { venueProUntil: until } });
+  });
+  // ── plans (per club) ────────────────────────────────────────────────
+  app.get('/plans', { preHandler: requireRole(...HOSTS) }, async (req) => {
+    const club = await callerClub(req.user as AuthUser & { name?: string });
+    return prisma.plan.findMany({
+      where: { isActive: true, clubId: club.id },
+      orderBy: { priceCents: 'asc' },
     });
   });
-  // ── plans ──────────────────────────────────────────────────────────
-  app.get('/plans', async () =>
-    prisma.plan.findMany({ where: { isActive: true }, orderBy: { priceCents: 'asc' } }),
-  );
 
   app.post<{ Body: { name: string; priceCents: number; period?: 'MONTHLY' | 'ANNUAL'; dropInFree?: boolean } }>(
     '/plans',
     { preHandler: requireRole('ADMIN') },
-    async (req) =>
-      prisma.plan.create({
+    async (req) => {
+      const club = await callerClub(req.user as AuthUser & { name?: string });
+      return prisma.plan.create({
         data: {
+          clubId: club.id,
           name: req.body.name,
           priceCents: req.body.priceCents,
           period: req.body.period ?? 'MONTHLY',
           dropInFree: req.body.dropInFree ?? true,
         },
-      }),
+      });
+    },
   );
 
   // ── memberships (admin grants; gateway checkout later) ─────────────
@@ -284,12 +326,13 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     '/memberships',
     { preHandler: requireRole('ADMIN') },
     async (req) => {
+      const club = await callerClub(req.user as AuthUser & { name?: string });
       const plan = await prisma.plan.findUniqueOrThrow({ where: { id: req.body.planId } });
       const months = req.body.months ?? (plan.period === 'ANNUAL' ? 12 : 1);
       const endsAt = new Date();
       endsAt.setMonth(endsAt.getMonth() + months);
       const membership = await prisma.membership.create({
-        data: { userId: req.body.userId, planId: plan.id, endsAt },
+        data: { clubId: club.id, userId: req.body.userId, planId: plan.id, endsAt },
       });
       await prisma.payment.create({
         data: {
@@ -360,16 +403,18 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     },
   );
 
-  // ── admin dashboard ─────────────────────────────────────────────────
-  app.get('/admin/stats', { preHandler: requireRole('ADMIN') }, async () => {
-    const [sessions, players, games, paid, pending, members, recent] = await Promise.all([
-      prisma.openSession.count(),
-      prisma.user.count(),
-      prisma.game.count({ where: { status: 'FINAL', isExhibition: false } }),
-      prisma.payment.aggregate({ where: { status: 'PAID' }, _sum: { amountCents: true } }),
-      prisma.payment.aggregate({ where: { status: 'PENDING' }, _sum: { amountCents: true } }),
-      prisma.membership.count({ where: { endsAt: { gt: new Date() } } }),
+  // ── admin dashboard (this club only) ────────────────────────────────
+  app.get('/admin/stats', { preHandler: requireRole('ADMIN') }, async (req) => {
+    const club = await callerClub(req.user as AuthUser & { name?: string });
+    const inClub = { clubId: club.id };
+    const [sessions, games, paid, pending, members, recent] = await Promise.all([
+      prisma.openSession.count({ where: inClub }),
+      prisma.game.count({ where: { status: 'FINAL', isExhibition: false, session: inClub } }),
+      prisma.payment.aggregate({ where: { status: 'PAID', session: inClub }, _sum: { amountCents: true } }),
+      prisma.payment.aggregate({ where: { status: 'PENDING', session: inClub }, _sum: { amountCents: true } }),
+      prisma.membership.count({ where: { endsAt: { gt: new Date() }, clubId: club.id } }),
       prisma.openSession.findMany({
+        where: inClub,
         orderBy: { startsAt: 'desc' },
         take: 20,
         include: {
@@ -379,6 +424,10 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
         },
       }),
     ]);
+    // players = everyone who has ever signed up for one of this club's sessions
+    const players = (await prisma.signup.findMany({
+      where: { session: inClub }, select: { userId: true }, distinct: ['userId'],
+    })).length;
     type R = (typeof recent)[number];
     return {
       totals: {

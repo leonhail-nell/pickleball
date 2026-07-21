@@ -107,7 +107,7 @@ export default function MePage() {
   return (
     <>
     <TopNav />
-    <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
+    <Box sx={{ maxWidth: 900, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
         <Typography variant="h4" fontWeight={800}>Hi {stats.name} 👋</Typography>
         {membership ? (

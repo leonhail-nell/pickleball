@@ -6,10 +6,10 @@ export default function TermsPage() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <TopNav />
-      <Box sx={{ maxWidth: 760, mx: 'auto', p: 3, width: '100%' }}>
+      <Box sx={{ maxWidth: 760, mx: 'auto', p: { xs: 2, md: 3 }, width: '100%' }}>
         <Typography variant="h4" fontWeight={800} mb={2}>Terms of Service</Typography>
         <Card>
-          <CardContent sx={{ p: 3 }}>
+          <CardContent sx={{ p: { xs: 2, md: 3 } }}>
             <Typography paragraph color="text.secondary">
               PicklePlay is a tool for organizing pickleball open play — sessions, fair
               court rotation, check-ins, standings, and club management. By creating an

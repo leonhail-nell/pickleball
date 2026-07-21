@@ -97,7 +97,7 @@ export default function WelcomePage() {
                     '&:hover': { boxShadow: '0 8px 24px rgba(17,24,39,0.12)', transform: 'translateY(-2px)' },
                   }}
                 >
-                  <CardContent sx={{ p: 3 }}>
+                  <CardContent sx={{ p: { xs: 2, md: 3 } }}>
                     <Stack direction="row" spacing={2.5} alignItems="flex-start">
                       <Box
                         sx={{
@@ -143,7 +143,7 @@ export default function WelcomePage() {
             {personas[persona].icon} {personas[persona].title}
           </Typography>
           <Card sx={{ textAlign: 'left' }}>
-            <CardContent sx={{ p: 3 }}>
+            <CardContent sx={{ p: { xs: 2, md: 3 } }}>
               <form onSubmit={submit}>
                 <Stack spacing={2}>
                   <LabeledField label="Name" placeholder="e.g., Maria Santos" value={name} onChange={(e) => setName(e.target.value)} required autoFocus />

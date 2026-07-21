@@ -9,8 +9,8 @@ import { CourtCard, QueueRow, UpNextCard, Stars, StatsBar, avatarSrcFor } from '
 import { ConfirmDialog, type ConfirmState } from '@/components/confirm-dialog';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
-  Alert, Avatar, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
-  DialogTitle, IconButton, Link, MenuItem, Rating, Select, Stack, TextField, Typography,
+  Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
+  DialogContent, DialogTitle, IconButton, Link, MenuItem, Rating, Select, Stack, TextField, Typography,
 } from '@mui/material';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -111,6 +111,16 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
   };
 
   const startSession = () => call(() => api(`/sessions/${id}/start`, { method: 'POST' }));
+  // opening the host console auto-starts the session (unless it's closed)
+  const [autoStartTried, setAutoStartTried] = useState(false);
+  useEffect(() => {
+    if (autoStartTried || board || !error.includes('not live')) return;
+    setAutoStartTried(true);
+    api<{ status: string }>(`/sessions/${id}`)
+      .then((s) => { if (s.status !== 'CLOSED') startSession(); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, error, autoStartTried, id]);
   const checkIn = (userId: string) =>
     call(() => api(`/sessions/${id}/checkin`, { method: 'POST', json: { userId } }));
   const swapIn = (inId: string) => {
@@ -191,12 +201,11 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
     );
   };
 
-  async function toggleQr() {
-    if (qrDataUrl) { setQrDataUrl(null); return; }
+  async function openQr() {
     try {
       const { token } = await api<{ token: string }>(`/sessions/${id}/qr`);
       if (!token) throw new Error('no QR token yet — start the session first');
-      setQrDataUrl(await QRCode.toDataURL(`${window.location.origin}/checkin/${token}`, { width: 360, margin: 1 }));
+      setQrDataUrl(await QRCode.toDataURL(`${window.location.origin}/checkin/${token}`, { width: 420, margin: 1 }));
     } catch (e) {
       setError((e as Error).message);
     }
@@ -264,14 +273,25 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
   );
 
   if (!board) {
+    // "not live" is expected on open — we auto-start. A different error is a real problem.
+    const hardError = error && !error.includes('not live');
     return (
       <>
       <TopNav />
-      <Box sx={{ maxWidth: 600, mx: 'auto', p: 3 }}>
+      <Box sx={{ maxWidth: 600, mx: 'auto', p: { xs: 2, md: 3 } }}>
         <Typography variant="h4" gutterBottom>Host console</Typography>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        <Typography color="text.secondary" mb={2}>Session is not live yet.</Typography>
-        <Button variant="contained" size="large" onClick={startSession}>Start live session</Button>
+        {hardError ? (
+          <>
+            <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+            <Typography color="text.secondary" mb={2}>Couldn&apos;t start the session.</Typography>
+            <Button variant="contained" size="large" onClick={startSession}>Try again</Button>
+          </>
+        ) : (
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 2 }}>
+            <CircularProgress size={22} sx={{ color: '#2f6b2b' }} />
+            <Typography color="text.secondary">Starting your session…</Typography>
+          </Stack>
+        )}
       </Box>
       </>
     );
@@ -280,7 +300,7 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
   return (
     <>
     <TopNav />
-    <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
+    <Box sx={{ maxWidth: 1400, mx: 'auto', p: { xs: 2, md: 3 } }}>
       {/* ── header ──────────────────────────────────────────────── */}
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ py: '12px !important' }}>
@@ -304,8 +324,8 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
               >
                 {board.rotationsPaused ? 'Resume play' : 'Pause play'}
               </Button>
-              <Button variant="outlined" size="small" startIcon={<QrCode2Icon />} onClick={toggleQr}>
-                {qrDataUrl ? 'Hide QR' : 'Check-in QR'}
+              <Button variant="outlined" size="small" startIcon={<QrCode2Icon />} onClick={openQr}>
+                Check-in QR
               </Button>
               <Button variant="outlined" color="error" size="small" startIcon={<StopCircleIcon />} onClick={endSession}>
                 End session
@@ -325,13 +345,37 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
           {warnings.map((w, i) => <div key={i}>• {w}</div>)}
         </Alert>
       )}
-      {qrDataUrl && (
-        <Card sx={{ mb: 2, textAlign: 'center', p: 2 }}>
-          <Typography variant="h6" gutterBottom>Scan to check in</Typography>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrDataUrl} alt="Check-in QR code" style={{ maxWidth: 360, width: '100%' }} />
-        </Card>
-      )}
+      {/* ── check-in QR modal ──────────────────────────────────── */}
+      <Dialog open={!!qrDataUrl} onClose={() => setQrDataUrl(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800, textAlign: 'center', pb: 0.5 }}>
+          Scan to check in
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.55)', mb: 2 }}>
+            Players scan this with their phone camera to join the queue instantly.
+          </Typography>
+          {qrDataUrl && (
+            <Box
+              sx={{
+                display: 'inline-block', p: 2, borderRadius: '16px',
+                bgcolor: '#ffffff', border: '1px solid #e7efe2',
+                boxShadow: '0 6px 24px rgba(46,90,40,0.10)',
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrDataUrl} alt="Check-in QR code" style={{ display: 'block', width: '100%', maxWidth: 300 }} />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, justifyContent: 'center' }}>
+          <Button
+            variant="contained" onClick={() => setQrDataUrl(null)}
+            sx={{ bgcolor: '#2f6b2b', fontWeight: 700, '&:hover': { bgcolor: '#24551f' } }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── score confirmations ─────────────────────────────────── */}
       {board.pending.length > 0 && (

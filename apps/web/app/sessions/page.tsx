@@ -17,6 +17,8 @@ import PublicIcon from '@mui/icons-material/Public';
 import SportsTennisIcon from '@mui/icons-material/SportsTennis';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { ConfirmDialog, type ConfirmState } from '@/components/confirm-dialog';
+import { LabeledField } from '@/components/labeled-field';
+import { useClub } from '@/lib/useClub';
 
 interface SessionRow {
   id: string;
@@ -59,8 +61,18 @@ export default function Sessions() {
   const [tier, setTier] = useState('open');
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
+  const [courtCount, setCourtCount] = useState(2);
+  const [durationH, setDurationH] = useState(3);
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [creating, setCreating] = useState(false);
+  const club = useClub();
+  // free plan caps sessions at the club's court limit; Pro unlocks all courts
+  const freeLimit = club?.freeCourtLimit ?? 4;
+  const isPro = !!club?.venuePro;
+  const totalCourts = courts.length || 1;
+  const maxCourts = isPro ? totalCourts : Math.min(totalCourts, freeLimit);
+  // Pro-locked teaser options shown (disabled) below the free ceiling
+  const proTeaser = !isPro ? [freeLimit + 1, freeLimit + 2] : [];
 
   const loadMySignups = () =>
     api<{ sessionId: string; status: string }[]>('/me/signups')
@@ -94,7 +106,9 @@ export default function Sessions() {
       return;
     }
     const now = new Date();
-    const end = new Date(now.getTime() + 3 * 3600_000);
+    const end = new Date(now.getTime() + durationH * 3600_000);
+    const cap = club && !club.venuePro ? club.freeCourtLimit : courtList.length;
+    const n = Math.max(1, Math.min(courtCount, courtList.length, cap));
     setCreating(true);
     try {
       await api('/sessions', {
@@ -103,7 +117,7 @@ export default function Sessions() {
           startsAt: now.toISOString(),
           endsAt: end.toISOString(),
           capacity: 24,
-          courtIds: courtList.map((c) => c.id),
+          courtIds: courtList.slice(0, n).map((c) => c.id),
           tierMin: TIERS[tier].min,
           tierMax: TIERS[tier].max,
           title: title || 'Open Play',
@@ -114,9 +128,11 @@ export default function Sessions() {
       });
       setSessions(await api<SessionRow[]>('/sessions'));
       setCreateOpen(false);
-      setTitle(''); setPrice(''); setTier('open'); setVisibility('public');
+      setTitle(''); setPrice(''); setTier('open'); setVisibility('public'); setCourtCount(2); setDurationH(3);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -175,7 +191,7 @@ export default function Sessions() {
   return (
     <>
     <TopNav />
-    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 3 }}>
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 2, md: 3 } }}>
       <Stack direction="row" spacing={1.25} alignItems="baseline" mb={2}>
         <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Sessions</Typography>
         <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}>
@@ -225,7 +241,7 @@ export default function Sessions() {
           const fillPct = Math.min(100, (s._count.signups / s.capacity) * 100);
           return (
             <Card key={s.id}>
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
                 <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2.5}>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -361,22 +377,64 @@ export default function Sessions() {
         <DialogTitle sx={{ fontWeight: 800 }}>New open play</DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={0.5}>
-            <TextField
-              label="Event title" fullWidth autoFocus placeholder="Friday Night Open Play"
+            <LabeledField
+              label="Event title" autoFocus placeholder="Friday Night Open Play"
               value={title} onChange={(e) => setTitle(e.target.value)}
             />
-            <TextField
-              label="Drop-in fee (₱ / player)" fullWidth inputMode="numeric" placeholder="0"
+            <LabeledField
+              label="Drop-in fee (per player)" inputMode="numeric" placeholder="0"
               value={price} onChange={(e) => setPrice(e.target.value)}
               InputProps={{ startAdornment: <InputAdornment position="start">₱</InputAdornment> }}
             />
-            <TextField
-              select label="Skill level" fullWidth value={tier} onChange={(e) => setTier(e.target.value)}
+            <LabeledField
+              label="Skill level" select value={tier} onChange={(e) => setTier(e.target.value)}
             >
               {Object.entries(TIERS).map(([k, t]) => (
                 <MenuItem key={k} value={k}>{t.label}</MenuItem>
               ))}
-            </TextField>
+            </LabeledField>
+            <Stack direction="row" spacing={1.5}>
+              <Box sx={{ flex: 1 }}>
+                <LabeledField
+                  label="Courts"
+                  select value={Math.min(courtCount, maxCourts)}
+                  onChange={(e) => setCourtCount(Number(e.target.value))}
+                >
+                  {Array.from({ length: maxCourts }, (_, i) => i + 1).map((n) => (
+                    <MenuItem key={n} value={n}>{n} court{n > 1 ? 's' : ''}</MenuItem>
+                  ))}
+                  {proTeaser.map((n) => (
+                    <MenuItem
+                      key={n} value={n} disabled
+                      sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}
+                    >
+                      <span>{n} courts</span>
+                      <Chip
+                        size="small" icon={<LockIcon sx={{ fontSize: '0.8rem !important' }} />} label="Venue Pro"
+                        sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800, height: 20, '& .MuiChip-icon': { color: '#b07f24' } }}
+                      />
+                    </MenuItem>
+                  ))}
+                </LabeledField>
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <LabeledField
+                  label="Duration" select value={durationH}
+                  onChange={(e) => setDurationH(Number(e.target.value))}
+                >
+                  {[1, 1.5, 2, 2.5, 3, 4, 5, 6].map((h) => (
+                    <MenuItem key={h} value={h}>{h} hour{h > 1 ? 's' : ''}</MenuItem>
+                  ))}
+                </LabeledField>
+              </Box>
+            </Stack>
+            {!isPro && (
+              <Chip
+                size="small" clickable component="a" href="/admin"
+                label={`⭐ Venue Pro unlocks 5+ courts (free plan: ${freeLimit})`}
+                sx={{ bgcolor: '#fdf1d7', color: '#b07f24', fontWeight: 800, alignSelf: 'flex-start' }}
+              />
+            )}
             <Box>
               <Typography variant="body2" fontWeight={700} mb={0.75}>Who can see this?</Typography>
               <ToggleButtonGroup
@@ -397,7 +455,7 @@ export default function Sessions() {
               </Typography>
             </Box>
             <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)' }}>
-              Starts now for 3 hours, using all available courts. You can add or remove courts once it&apos;s live.
+              Starts now for {durationH} hour{durationH > 1 ? 's' : ''} on {Math.min(courtCount, maxCourts)} court{Math.min(courtCount, maxCourts) > 1 ? 's' : ''}. Add or remove courts once it&apos;s live.
             </Typography>
           </Stack>
         </DialogContent>

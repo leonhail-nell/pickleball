@@ -19,14 +19,21 @@ export const theme = createTheme({
   shape: { borderRadius: 12 },
   typography: {
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, "Helvetica Neue", sans-serif',
-    h1: { fontWeight: 800, letterSpacing: '-0.02em' },
-    h2: { fontWeight: 800, letterSpacing: '-0.02em' },
-    h3: { fontWeight: 800, letterSpacing: '-0.01em' },
+      '"Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+    fontWeightRegular: 500,
+    fontWeightMedium: 700,
+    fontWeightBold: 800,
+    h1: { fontWeight: 900, letterSpacing: '-0.02em' },
+    h2: { fontWeight: 900, letterSpacing: '-0.02em' },
+    h3: { fontWeight: 900, letterSpacing: '-0.01em' },
     h4: { fontWeight: 800, letterSpacing: '-0.01em' },
-    h5: { fontWeight: 700 },
-    h6: { fontWeight: 700 },
-    button: { fontWeight: 600, textTransform: 'none' },
+    h5: { fontWeight: 800 },
+    h6: { fontWeight: 800 },
+    subtitle1: { fontWeight: 700 },
+    subtitle2: { fontWeight: 700 },
+    body1: { fontWeight: 500 },
+    body2: { fontWeight: 500 },
+    button: { fontWeight: 800, textTransform: 'none' },
   },
   components: {
     MuiCard: {
@@ -54,7 +61,7 @@ export const theme = createTheme({
     },
     MuiChip: {
       styleOverrides: {
-        root: { borderRadius: 999, fontWeight: 600 },
+        root: { borderRadius: 999, fontWeight: 700 },
         outlined: { borderColor: 'rgba(17,24,39,0.15)' },
       },
     },

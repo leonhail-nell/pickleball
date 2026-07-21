@@ -135,6 +135,7 @@ export interface Board {
   sessionId: string;
   seedHash: string | null;
   rotationsPaused?: boolean;
+  clubTheme?: Record<string, string>;
   courts: BoardCourt[];
   waiting: BoardPlayer[];
   players: BoardPlayer[];

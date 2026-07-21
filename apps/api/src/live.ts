@@ -48,6 +48,7 @@ export class LiveSession {
   pending: PendingGame[] = [];
   seedHash: string | null = null;
   rotationsPaused = false;
+  clubTheme: Record<string, string> = {};
   private chain: ChainRng;
   private preview: Assignment | null = null;
   private names = new Map<string, string>();
@@ -68,7 +69,7 @@ export class LiveSession {
   static async start(sessionId: string, io: Server): Promise<LiveSession> {
     const session = await prisma.openSession.findUniqueOrThrow({
       where: { id: sessionId },
-      include: { courts: { include: { court: true } } },
+      include: { courts: { include: { court: true } }, club: { select: { theme: true } } },
     });
 
     // commit–reveal seed: create once per session, publish only the hash
@@ -100,6 +101,7 @@ export class LiveSession {
 
     const live = new LiveSession(sessionId, io, hashChainRng(seed, rngCounter), engineJson);
     live.seedHash = session.seedHash ?? commitmentOf(seed);
+    live.clubTheme = ((session as { club?: { theme?: unknown } }).club?.theme as Record<string, string>) ?? {};
 
     for (const sc of session.courts) {
       live.courts.set(sc.courtId, {
@@ -540,6 +542,7 @@ export class LiveSession {
       sessionId: this.sessionId,
       seedHash: this.seedHash,
       rotationsPaused: this.rotationsPaused,
+      clubTheme: this.clubTheme,
       courts: [...this.courts.values()].sort((a, b) => a.number - b.number),
       waiting,
       players,

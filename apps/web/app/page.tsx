@@ -12,22 +12,19 @@ import { Footer } from '@/components/footer';
 
 const steps = [
   {
-    n: '01',
-    icon: '📲',
-    title: 'Check in',
-    body: 'Scan the QR at the venue — you’re in the player pool in seconds. No paddle stacking, no whiteboard.',
+    n: '1',
+    title: 'Create a session',
+    body: 'Set your courts, level, and price — then open the doors. Players see it live.',
   },
   {
-    n: '02',
-    icon: '🔀',
-    title: 'Get matched',
-    body: 'The fair-shuffle engine rotates you on: new partners every game, equal games for everyone, zero favoritism.',
+    n: '2',
+    title: 'Players check in',
+    body: 'A quick QR scan drops each player into the waiting queue, no clipboard needed.',
   },
   {
-    n: '03',
-    icon: '🏆',
-    title: 'Play',
-    body: 'Watch the live board, get a ping when you’re up, and climb the leaderboard. We handle the rest.',
+    n: '3',
+    title: 'Auto-rotation & boards',
+    body: 'Fair court assignments, live standings, and leaderboards update on every phone.',
   },
 ];
 
@@ -55,20 +52,27 @@ export default function Landing() {
 
   return (
     <Box>
-      {/* ── nav ─────────────────────────────────────────────────── */}
-      <Container maxWidth="lg">
-        <Stack direction="row" justifyContent="space-between" alignItems="center" py={2}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <PaddleLogo size={30} />
-            <Typography variant="h5" fontWeight={800}>
-              Pickle<Box component="span" sx={{ color: 'secondary.main' }}>Play</Box>
-            </Typography>
+      {/* ── nav (sticky) ────────────────────────────────────────── */}
+      <Box
+        sx={{
+          position: 'sticky', top: 0, zIndex: (t) => t.zIndex.appBar,
+          bgcolor: 'rgba(240,253,244,0.85)', backdropFilter: 'blur(10px)',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Stack direction="row" justifyContent="space-between" alignItems="center" py={1.5}>
+            <Stack direction="row" spacing={1} alignItems="center" component="a" href="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
+              <PaddleLogo size={28} />
+              <Typography variant="h5" fontWeight={800}>
+                Pickle<Box component="span" sx={{ color: 'secondary.main' }}>Play</Box>
+              </Typography>
+            </Stack>
+            <Button variant="contained" href={loggedIn ? '/sessions' : '/welcome'}>
+              {loggedIn ? 'Open the app' : 'Try It Free'}
+            </Button>
           </Stack>
-          <Button variant="contained" size="large" href={loggedIn ? '/sessions' : '/welcome'}>
-            {loggedIn ? 'Open the app' : 'Try It Free'}
-          </Button>
-        </Stack>
-      </Container>
+        </Container>
+      </Box>
 
       {/* ── hero ────────────────────────────────────────────────── */}
       <Container maxWidth="md" sx={{ textAlign: 'center', pt: { xs: 6, md: 9 }, pb: 6 }}>
@@ -115,33 +119,45 @@ export default function Landing() {
         )}
       </Container>
 
-      {/* ── how it works ────────────────────────────────────────── */}
-      <Container maxWidth="lg" sx={{ pb: 10, pt: 4 }}>
-        <Typography variant="h3" align="center" sx={{ fontSize: { xs: '1.8rem', md: '2.3rem' } }}>
-          How it works
-        </Typography>
-        <Typography align="center" color="text.secondary" mb={5} mt={1}>
-          Get on the court in three simple steps
-        </Typography>
-        <Grid container spacing={3}>
-          {steps.map((s) => (
-            <Grid key={s.n} size={{ xs: 12, md: 4 }}>
-              <Card
-                sx={{
-                  height: '100%',
-                  '&:hover': { boxShadow: '0 8px 24px rgba(17,24,39,0.10)', transform: 'translateY(-2px)' },
-                }}
-              >
-                <CardContent sx={{ p: 3.5 }}>
-                  <Typography sx={{ fontSize: '2rem', mb: 1.5 }}>{s.icon}</Typography>
-                  <Typography variant="h6" gutterBottom>{s.title}</Typography>
+      {/* ── how it works (white band, light-green step cards) ───── */}
+      <Box sx={{ bgcolor: '#ffffff', py: { xs: 6, md: 9 } }}>
+        <Container maxWidth="lg">
+          <Typography variant="h3" align="center" sx={{ fontSize: { xs: '1.8rem', md: '2.3rem' } }}>
+            How it works
+          </Typography>
+          <Typography align="center" color="text.secondary" mb={5} mt={1}>
+            Get on the court in three simple steps
+          </Typography>
+          <Grid container spacing={3}>
+            {steps.map((s) => (
+              <Grid key={s.n} size={{ xs: 12, md: 4 }}>
+                <Box
+                  sx={{
+                    height: '100%', boxSizing: 'border-box',
+                    bgcolor: '#f4f9f1', border: '1px solid #e2efdb', borderRadius: '18px',
+                    p: { xs: 2.5, md: 3.5 },
+                    transition: 'box-shadow 160ms ease, transform 160ms ease',
+                    '&:hover': { boxShadow: '0 8px 24px rgba(46,90,40,0.10)', transform: 'translateY(-2px)' },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 48, height: 48, borderRadius: '14px', mb: 2,
+                      bgcolor: '#cdeabf', color: '#2f6b2b',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '1.35rem', fontWeight: 900,
+                    }}
+                  >
+                    {s.n}
+                  </Box>
+                  <Typography variant="h6" fontWeight={800} gutterBottom>{s.title}</Typography>
                   <Typography color="text.secondary">{s.body}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Container>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
 
       {/* ── built for ───────────────────────────────────────────── */}
       <Container maxWidth="md" sx={{ textAlign: 'center', pb: 8 }}>
