@@ -107,6 +107,25 @@ export async function isClubMemberOf(
   return !!m;
 }
 
+/** The full club dashboard (stats, plans, members) is admin-or-Venue-Pro. */
+export async function requireDashboard(user: AuthUser & { name?: string }): Promise<string | null> {
+  if (user.role === 'ADMIN') return null;
+  const club = await callerClub(user);
+  return venueProActiveForClub(club)
+    ? null
+    : 'The full club dashboard (stats, plans & members) is a Venue Pro feature — upgrade to unlock it.';
+}
+
+/** A club's built-in $0 "Club Member" plan (auto-created), used to add members. */
+export async function getOrCreateCompPlan(clubId: string): Promise<{ id: string }> {
+  const existing = await prisma.plan.findFirst({ where: { clubId, name: 'Club Member' }, select: { id: true } });
+  if (existing) return existing;
+  return prisma.plan.create({
+    data: { clubId, name: 'Club Member', priceCents: 0, dropInFree: false, isActive: false },
+    select: { id: true },
+  });
+}
+
 export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry) {
   // ── club config & Venue Pro (per-organizer club) ──────────────────
   app.get('/club', { preHandler: requireRole(...HOSTS) }, async (req) => {
@@ -155,7 +174,8 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     async (req, reply) => {
       const provider = req.body.provider;
       const months = Math.min(12, Math.max(1, req.body.months ?? 1));
-      const amount = PRO_PRICE_CENTS * months;
+      // annual (12 months) gets 17% off
+      const amount = months === 12 ? Math.round(PRO_PRICE_CENTS * 12 * 0.83) : PRO_PRICE_CENTS * months;
       const origin = (req.headers.origin as string | undefined) ?? process.env.WEB_ORIGIN ?? 'http://localhost:3000';
       const label = `PicklePlay Venue Pro — ${months} month${months > 1 ? 's' : ''}`;
 
@@ -295,6 +315,12 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     until.setDate(until.getDate() + 14);
     return prisma.club.update({ where: { id: club.id }, data: { venueProUntil: until } });
   });
+
+  // cancel Venue Pro — ends the entitlement now and reverts the club to the free plan
+  app.post('/club/venue-pro/cancel', { preHandler: requireRole(...HOSTS) }, async (req) => {
+    const club = await callerClub(req.user as AuthUser & { name?: string });
+    return prisma.club.update({ where: { id: club.id }, data: { venueProUntil: null } });
+  });
   // ── plans (per club) ────────────────────────────────────────────────
   app.get('/plans', { preHandler: requireRole(...HOSTS) }, async (req) => {
     const club = await callerClub(req.user as AuthUser & { name?: string });
@@ -306,8 +332,10 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
 
   app.post<{ Body: { name: string; priceCents: number; period?: 'MONTHLY' | 'ANNUAL'; dropInFree?: boolean } }>(
     '/plans',
-    { preHandler: requireRole('ADMIN') },
-    async (req) => {
+    { preHandler: requireRole(...HOSTS) },
+    async (req, reply) => {
+      const gate = await requireDashboard(req.user as AuthUser & { name?: string });
+      if (gate) return reply.code(402).send({ error: gate });
       const club = await callerClub(req.user as AuthUser & { name?: string });
       return prisma.plan.create({
         data: {
@@ -324,8 +352,10 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
   // ── memberships (admin grants; gateway checkout later) ─────────────
   app.post<{ Body: { userId: string; planId: string; months?: number } }>(
     '/memberships',
-    { preHandler: requireRole('ADMIN') },
-    async (req) => {
+    { preHandler: requireRole(...HOSTS) },
+    async (req, reply) => {
+      const gate = await requireDashboard(req.user as AuthUser & { name?: string });
+      if (gate) return reply.code(402).send({ error: gate });
       const club = await callerClub(req.user as AuthUser & { name?: string });
       const plan = await prisma.plan.findUniqueOrThrow({ where: { id: req.body.planId } });
       const months = req.body.months ?? (plan.period === 'ANNUAL' ? 12 : 1);
@@ -403,8 +433,10 @@ export function clubRoutes(app: FastifyInstance, registry?: LiveSessionRegistry)
     },
   );
 
-  // ── admin dashboard (this club only) ────────────────────────────────
-  app.get('/admin/stats', { preHandler: requireRole('ADMIN') }, async (req) => {
+  // ── club dashboard stats (this club only; admin or Venue Pro) ───────
+  app.get('/admin/stats', { preHandler: requireRole(...HOSTS) }, async (req, reply) => {
+    const gate = await requireDashboard(req.user as AuthUser & { name?: string });
+    if (gate) return reply.code(402).send({ error: gate });
     const club = await callerClub(req.user as AuthUser & { name?: string });
     const inClub = { clubId: club.id };
     const [sessions, games, paid, pending, members, recent] = await Promise.all([

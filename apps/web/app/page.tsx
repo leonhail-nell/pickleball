@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { api, getUser } from '@/lib/api';
 import { PaddleLogo } from '@/components/logo';
-import { CourtCard, QueueChip } from '@/components/board';
+import { CourtCard, UpNextCard } from '@/components/board';
 import {
   Box, Button, Card, CardContent, Chip, Container, Divider, Stack, Typography,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
+import PauseIcon from '@mui/icons-material/Pause';
 import { Footer } from '@/components/footer';
 
 const steps = [
@@ -96,11 +97,11 @@ export default function Landing() {
           Live queue, QR check-in, unbiased court rotation, and leaderboards —
           players follow everything from their phones.
         </Typography>
-        <Stack direction="row" spacing={2} justifyContent="center" mt={4}>
-          <Button variant="contained" size="large" href={loggedIn ? '/sessions' : '/welcome'} sx={{ px: 4, py: 1.5, fontSize: '1.05rem' }}>
+        <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} justifyContent="center" mt={4} flexWrap="wrap" useFlexGap>
+          <Button variant="contained" size="large" href={loggedIn ? '/sessions' : '/welcome'} sx={{ px: { xs: 3, sm: 4 }, py: 1.5, fontSize: '1.05rem' }}>
             {loggedIn ? 'Start a Session' : 'Get Started Free'}
           </Button>
-          <Button variant="outlined" size="large" href={loggedIn ? '/sessions' : '/login'} sx={{ px: 4, py: 1.5, fontSize: '1.05rem' }}>
+          <Button variant="outlined" size="large" href={loggedIn ? '/sessions' : '/login'} sx={{ px: { xs: 3, sm: 4 }, py: 1.5, fontSize: '1.05rem' }}>
             {loggedIn ? 'My sessions' : 'Log in'}
           </Button>
         </Stack>
@@ -111,7 +112,7 @@ export default function Landing() {
         </Stack>
 
         {stats && (stats.games > 0 || stats.sessions > 0) && (
-          <Stack direction="row" spacing={6} justifyContent="center" mt={6}>
+          <Stack direction="row" spacing={{ xs: 3, sm: 6 }} justifyContent="center" mt={6} flexWrap="wrap" useFlexGap>
             {stat(stats.sessions, 'Sessions run')}
             {stat(stats.games, 'Games played')}
             {stat(stats.players, 'Players')}
@@ -120,7 +121,7 @@ export default function Landing() {
       </Container>
 
       {/* ── how it works (white band, light-green step cards) ───── */}
-      <Box sx={{ bgcolor: '#ffffff', py: { xs: 6, md: 9 } }}>
+      <Box sx={{ py: { xs: 6, md: 9 } }}>
         <Container maxWidth="lg">
           <Typography variant="h3" align="center" sx={{ fontSize: { xs: '1.8rem', md: '2.3rem' } }}>
             How it works
@@ -216,22 +217,82 @@ export default function Landing() {
                 </Grid>
               ))}
             </Grid>
-            <Box mt={2}>
-              <Typography variant="h6" color="text.secondary" mb={1}>Next up</Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                {[
-                  { id: 'q1', name: 'Ava', rating: 3.5 },
-                  { id: 'q2', name: 'Dinah', rating: 3 },
-                  { id: 'q3', name: 'Joseph', rating: 4 },
-                  { id: 'q4', name: 'Andreo', rating: 3 },
-                ].map((p, i) => (
-                  <QueueChip key={p.id} player={p} prefix={`${i + 1}. `} small />
-                ))}
-                <Chip color="success" label="Auto-matched" sx={{ ml: 'auto' }} />
-              </Stack>
-            </Box>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="flex-end" mt={2}>
+              <Box sx={{ width: { xs: '100%', md: 400 } }}>
+                <UpNextCard
+                  title="Up next · Court 1" chipLabel="Waiting" rightLabel="Auto-matched"
+                  players={[
+                    { id: 'q1', name: 'Ava', rating: 3.5 },
+                    { id: 'q2', name: 'Dinah', rating: 3 },
+                    { id: 'q3', name: 'Joseph', rating: 4 },
+                    { id: 'q4', name: 'Andreo', rating: 3 },
+                  ]}
+                  footer="Starts when a court frees up"
+                />
+              </Box>
+              <Box sx={{ width: { xs: '100%', md: 400 } }}>
+                <UpNextCard
+                  title="Up next · Court 2" chipLabel="Waiting" rightLabel="Auto-matched"
+                  players={[
+                    { id: 'q5', name: 'Mia', rating: 3.8 },
+                    { id: 'q6', name: 'Leo', rating: 3.1 },
+                    { id: 'q7', name: 'Priya', rating: 4.2 },
+                    { id: 'q8', name: 'Sam', rating: 2.9 },
+                  ]}
+                  footer="Starts when a court frees up"
+                />
+              </Box>
+            </Stack>
           </Box>
         </Card>
+      </Container>
+
+      {/* ── what players see (phone) ────────────────────────────── */}
+      <Container maxWidth="lg" sx={{ pb: 10 }}>
+        <Typography variant="h3" align="center" sx={{ fontSize: { xs: '1.8rem', md: '2.3rem' } }}>
+          What players see
+        </Typography>
+        <Typography align="center" color="text.secondary" mb={5} mt={1} sx={{ maxWidth: 560, mx: 'auto' }}>
+          Players follow the whole session from their phone — a live queue, a heads-up when they&apos;re on next, and their record for the night. No app to install.
+        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Box sx={{ width: 330, maxWidth: '100%', bgcolor: '#1c2a1a', borderRadius: '44px', p: 1.3, boxShadow: '0 26px 60px rgba(28,42,26,0.28)' }}>
+            <Box sx={{ position: 'relative', bgcolor: '#f0fdf4', borderRadius: '36px', overflow: 'hidden', minHeight: 560 }}>
+              <Box sx={{ position: 'absolute', top: 9, left: '50%', transform: 'translateX(-50%)', width: 118, height: 22, bgcolor: '#1c2a1a', borderRadius: '999px', zIndex: 1 }} />
+              <Box sx={{ p: 2, pt: 4.5 }}>
+                <Typography variant="h6" fontWeight={900} sx={{ mb: 1.5 }}>Hi Ava 👋</Typography>
+
+                <Box sx={{ bgcolor: '#fff', border: '1px solid #e7efe2', borderRadius: '16px', p: 1.75, mb: 1.5 }}>
+                  <Typography fontWeight={800}>You&apos;re <Box component="span" sx={{ color: '#2f6b2b' }}>#2</Box> in the queue</Typography>
+                  <Box sx={{ height: 8, borderRadius: 999, bgcolor: 'rgba(28,42,26,0.10)', overflow: 'hidden', my: 1.25 }}>
+                    <Box sx={{ width: '80%', height: '100%', bgcolor: '#4c9a44', borderRadius: 999 }} />
+                  </Box>
+                  <Stack direction="row" spacing={1}>
+                    <Chip size="small" label="3 games" sx={{ bgcolor: '#eef4e9', color: '#2f5d2b', fontWeight: 700 }} />
+                    <Chip size="small" label="paired 8/21" sx={{ bgcolor: '#eef4e9', color: '#2f5d2b', fontWeight: 700 }} />
+                  </Stack>
+                </Box>
+
+                <Button
+                  fullWidth variant="outlined" startIcon={<PauseIcon />}
+                  sx={{ mb: 2.5, fontWeight: 800, color: '#1c2a1a', borderColor: '#dbe4d6', justifyContent: 'flex-start', pointerEvents: 'none' }}
+                >
+                  Step out (pause)
+                </Button>
+
+                <Stack direction="row" spacing={1} alignItems="baseline" mb={1}>
+                  <Typography fontWeight={900}>Courts</Typography>
+                  <Typography variant="caption" color="text.secondary">live from the venue</Typography>
+                </Stack>
+                <CourtCard
+                  size="sm" number={1} startedAt={Date.now() - 128_000}
+                  teamA={[{ id: 'm1', name: 'Greg', rating: 3.9 }, { id: 'm2', name: 'Ivan', rating: 2.8 }]}
+                  teamB={[{ id: 'm3', name: 'Jeff', rating: 3.3 }, { id: 'm4', name: 'Geoff', rating: 2.6 }]}
+                />
+              </Box>
+            </Box>
+          </Box>
+        </Box>
       </Container>
 
       {/* ── venue pro ───────────────────────────────────────────── */}

@@ -2,7 +2,21 @@
 
 import { Box, TextField, Typography, type TextFieldProps } from '@mui/material';
 
-/** PickleQ-style form field: bold label above the input, no floating MUI label. */
+/**
+ * PickleQ-style form field: a bold label ABOVE the input, no floating MUI label.
+ *
+ * ⭐ PROJECT CONVENTION — use this for every form field in the app. Do NOT use a
+ * bare `<TextField label=…>` (floating label) in forms; it's inconsistent with
+ * the login/registration/create-session forms. Works for text inputs and for
+ * dropdowns too — pass `select` and `<MenuItem>` children:
+ *
+ *   <LabeledField label="Email" type="email" value={…} onChange={…} />
+ *   <LabeledField label="Skill level" select value={tier} onChange={…}>…</LabeledField>
+ *
+ * For a standalone control that isn't a TextField (Rating, ToggleButtonGroup,
+ * color swatches), render the label yourself as:
+ *   <Typography variant="body2" fontWeight={700} mb={0.75}>Label</Typography>
+ */
 export function LabeledField({
   label, hint, ...props
 }: { label: string; hint?: string } & Omit<TextFieldProps, 'label'>) {

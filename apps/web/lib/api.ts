@@ -91,6 +91,7 @@ export interface SessionMeta {
   id: string;
   title: string;
   description: string;
+  location?: string;
   organizer: string;
   createdById?: string | null;
   priceCents: number;

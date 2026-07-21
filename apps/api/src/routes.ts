@@ -4,7 +4,7 @@ import { prisma } from '@pickleplay/db';
 import { hashPassword, requireRole, manageBlock, type AuthUser } from './auth.js';
 import {
   ensureSessionPayment, venueProActive, isClubMemberOf, callerClub,
-  venueProActiveForClub, FREE_COURT_LIMIT,
+  venueProActiveForClub, requireDashboard, getOrCreateCompPlan, FREE_COURT_LIMIT,
 } from './club.js';
 import type { LiveSession, LiveSessionRegistry } from './live.js';
 
@@ -88,20 +88,88 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
   }
 
   // ── schedule ─────────────────────────────────────────────────────
-  // Public sessions are visible to everyone; private ("members only") ones
-  // only to the creator and members of that session's club.
+  // "Open Plays" is the member/organizer view — scoped to the caller's own
+  // club(s), sessions they created, and sessions they've joined. Cross-club
+  // public discovery lives at /discover ("Find a Game"). Admins see everything.
   app.get('/sessions', async (req) => {
     const user = req.user as AuthUser;
-    const clubs = await memberClubIds(user);
-    const all = await prisma.openSession.findMany({
+    const include = { courts: { include: { court: true } }, _count: { select: { signups: true } } };
+    if (user.role === 'ADMIN') {
+      return prisma.openSession.findMany({ orderBy: { startsAt: 'desc' }, include });
+    }
+    const clubs = [...(await memberClubIds(user))];
+    return prisma.openSession.findMany({
+      where: {
+        OR: [
+          ...(clubs.length ? [{ clubId: { in: clubs } }] : []),
+          { createdById: user.id },
+          { signups: { some: { userId: user.id } } },
+        ],
+      },
       orderBy: { startsAt: 'desc' },
-      include: { courts: { include: { court: true } }, _count: { select: { signups: true } } },
+      include,
     });
-    return (all as { isPrivate: boolean; clubId: string | null; createdById: string | null }[])
-      .filter((s) => !s.isPrivate || s.createdById === user.id || (s.clubId && clubs.has(s.clubId)));
   });
 
   // courts for the organizer's own club (used when creating/hosting sessions)
+  // ── public discovery (Find a Game + Club pages) ─────────────────
+  // Only PUBLIC, non-closed open plays across all clubs.
+  app.get('/discover', async () => {
+    const rows = await prisma.openSession.findMany({
+      where: { isPrivate: false, status: { not: 'CLOSED' } },
+      orderBy: { startsAt: 'desc' },
+      include: {
+        club: { select: { id: true, name: true } },
+        courts: { select: { courtId: true } },
+        _count: { select: { signups: { where: { status: { in: ['SIGNED_UP', 'CHECKED_IN'] } } } } },
+      },
+    });
+    type R = typeof rows[number];
+    return (rows as R[]).map((s) => ({
+      id: s.id, title: s.title, organizer: s.organizer, status: s.status, location: s.location,
+      startsAt: s.startsAt, endsAt: s.endsAt, priceCents: s.priceCents, capacity: s.capacity,
+      tierMin: s.tierMin, tierMax: s.tierMax, courts: s.courts.length,
+      signups: s._count.signups, clubId: s.club?.id ?? null, clubName: s.club?.name ?? 'Open Play',
+    }));
+  });
+
+  // club directory
+  app.get('/clubs', async () => {
+    const clubs = await prisma.club.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } });
+    const out = [];
+    for (const c of clubs as { id: string; name: string }[]) {
+      const [live, upcoming] = await Promise.all([
+        prisma.openSession.count({ where: { clubId: c.id, isPrivate: false, status: 'LIVE' } }),
+        prisma.openSession.count({ where: { clubId: c.id, isPrivate: false, status: { in: ['OPEN', 'SCHEDULED'] } } }),
+      ]);
+      if (live + upcoming > 0) out.push({ id: c.id, name: c.name, live, upcoming });
+    }
+    return out;
+  });
+
+  // one club's public page: its open plays
+  app.get<{ Params: { id: string } }>('/clubs/:id', async (req, reply) => {
+    const club = await prisma.club.findUnique({ where: { id: req.params.id }, select: { id: true, name: true } });
+    if (!club) return reply.code(404).send({ error: 'club not found' });
+    const sessions = await prisma.openSession.findMany({
+      where: { clubId: club.id, isPrivate: false, status: { not: 'CLOSED' } },
+      orderBy: { startsAt: 'desc' },
+      include: {
+        courts: { select: { courtId: true } },
+        _count: { select: { signups: { where: { status: { in: ['SIGNED_UP', 'CHECKED_IN'] } } } } },
+      },
+    });
+    type R = typeof sessions[number];
+    return {
+      id: club.id, name: club.name,
+      sessions: (sessions as R[]).map((s) => ({
+        id: s.id, title: s.title, organizer: s.organizer, status: s.status, location: s.location,
+        startsAt: s.startsAt, endsAt: s.endsAt, priceCents: s.priceCents, capacity: s.capacity,
+        tierMin: s.tierMin, tierMax: s.tierMax, courts: s.courts.length, signups: s._count.signups,
+      })),
+    };
+  });
+
   app.get('/courts', async (req) => {
     const user = req.user as AuthUser & { name?: string };
     if (!['HOST', 'ADMIN'].includes(user.role)) return [];
@@ -185,13 +253,23 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
     },
   );
 
-  // walk-in check-in support: host can search the member list
-  app.get('/users', { preHandler: requireRole(...HOSTS) }, async () =>
-    prisma.user.findMany({
-      select: { id: true, name: true, email: true, rating: true, role: true, strikes: true, avatarUrl: true },
-      orderBy: { name: 'asc' },
-    }),
-  );
+  // member list — admins see everyone; organizers see their own club roster
+  // (members + anyone who has signed up for one of their sessions)
+  const userCols = { id: true, name: true, email: true, rating: true, role: true, strikes: true, avatarUrl: true };
+  app.get('/users', { preHandler: requireRole(...HOSTS) }, async (req) => {
+    const user = req.user as AuthUser & { name?: string };
+    if (user.role === 'ADMIN') {
+      return prisma.user.findMany({ select: userCols, orderBy: { name: 'asc' } });
+    }
+    const club = await callerClub(user);
+    const memberIds = (await prisma.membership.findMany({ where: { clubId: club.id }, select: { userId: true } }))
+      .map((m: { userId: string }) => m.userId);
+    const signupIds = (await prisma.signup.findMany({
+      where: { session: { clubId: club.id } }, select: { userId: true }, distinct: ['userId'],
+    })).map((s: { userId: string }) => s.userId);
+    const ids = Array.from(new Set([user.id, ...memberIds, ...signupIds]));
+    return prisma.user.findMany({ where: { id: { in: ids } }, select: userCols, orderBy: { name: 'asc' } });
+  });
 
   app.post<{
     Body: {
@@ -216,14 +294,15 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
       });
       const ownIds = (ownCourts as { id: string }[]).map((c) => c.id);
       if (!ownIds.length) return reply.code(400).send({ error: 'no valid courts for your club' });
-      const { title, description, organizer, priceCents, isPrivate } = req.body as {
-        title?: string; description?: string; organizer?: string; priceCents?: number; isPrivate?: boolean;
+      const { title, description, organizer, location, priceCents, isPrivate } = req.body as {
+        title?: string; description?: string; organizer?: string; location?: string; priceCents?: number; isPrivate?: boolean;
       };
       return prisma.openSession.create({
         data: {
           clubId: club.id,
           title: title || 'Open Play',
           description: description ?? '',
+          location: location?.trim() ?? '',
           organizer: organizer ?? '',
           createdById: creator.id,
           isPrivate: isPrivate ?? false,
@@ -442,16 +521,20 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
     },
   );
 
-  // admin: add a member directly (default password until they reset)
+  // add a member to the club (admin or Venue Pro org). Organizers' new members
+  // are enrolled in their club so they appear on the roster and see private play.
   app.post<{ Body: { name: string; email: string; rating?: number } }>(
     '/users',
-    { preHandler: requireRole('ADMIN') },
+    { preHandler: requireRole(...HOSTS) },
     async (req, reply) => {
+      const actor = req.user as AuthUser & { name?: string };
+      const gate = await requireDashboard(actor);
+      if (gate) return reply.code(402).send({ error: gate });
       const { name, email, rating } = req.body;
       if (!name?.trim() || !email?.trim()) return reply.code(400).send({ error: 'name and email required' });
       const existing = await prisma.user.findUnique({ where: { email: email.trim() } });
       if (existing) return reply.code(409).send({ error: 'email already registered' });
-      return prisma.user.create({
+      const created = await prisma.user.create({
         data: {
           name: name.trim(),
           email: email.trim(),
@@ -460,6 +543,13 @@ export function sessionRoutes(app: FastifyInstance, registry: LiveSessionRegistr
         },
         select: { id: true, name: true, email: true, rating: true, role: true },
       });
+      if (actor.role !== 'ADMIN') {
+        const club = await callerClub(actor);
+        const plan = await getOrCreateCompPlan(club.id);
+        const endsAt = new Date(); endsAt.setFullYear(endsAt.getFullYear() + 10);
+        await prisma.membership.create({ data: { clubId: club.id, userId: created.id, planId: plan.id, endsAt } });
+      }
+      return created;
     },
   );
 

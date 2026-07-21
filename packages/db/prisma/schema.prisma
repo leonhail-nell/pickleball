@@ -66,6 +66,72 @@ model Club {
   memberships   Membership[]
   plans         Plan[]
   proOrders     ProOrder[]
+  tournaments   Tournament[]
+}
+
+enum TournamentStatus {
+  SETUP
+  LIVE
+  DONE
+}
+
+// A single-elimination (seeded) bracket tournament run by a club.
+model Tournament {
+  id             String             @id @default(cuid())
+  clubId         String?
+  name           String             @default("Tournament")
+  createdById    String?
+  status         TournamentStatus   @default(SETUP)
+  format         String             @default("SINGLE_ELIM") // SINGLE_ELIM | DOUBLE_ELIM | POOLS_KO
+  poolCount      Int                @default(0) // number of round-robin pools (POOLS_KO)
+  advancePerPool Int                @default(2) // top N per pool advance to the knockout
+  thirdPlace     Boolean            @default(false)
+  doubles        Boolean            @default(false) // entries are 2-player teams
+  bestOf         Int                @default(1) // games per bracket match (1, 3, 5)
+  startsAt       DateTime?
+  createdAt      DateTime           @default(now())
+  club           Club?              @relation(fields: [clubId], references: [id])
+  players        TournamentPlayer[]
+  matches        TournamentMatch[]
+
+  @@index([clubId])
+}
+
+model TournamentPlayer {
+  id           String     @id @default(cuid())
+  tournamentId String
+  userId       String?
+  name         String
+  partner      String? // second player's name for doubles entries
+  seed         Int        @default(0)
+  pool         Int        @default(-1) // pool index for POOLS_KO (-1 = unassigned)
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@index([tournamentId])
+}
+
+model TournamentMatch {
+  id           String     @id @default(cuid())
+  tournamentId String
+  stage           String     @default("KO") // KO | THIRD | POOL | WB | LB | GF
+  pool            Int?       // pool index for POOL-stage round-robin matches
+  round           Int        // 1 = first round; increases toward the final
+  slot            Int        // position within the round (0-based)
+  aPlayerId       String?
+  bPlayerId       String?
+  aName           String?    // resolved name for display (or "Bye")
+  bName           String?
+  aScore          Int?       // single game: points; best-of-N: games won
+  bScore          Int?
+  games           Json?      // best-of-N: array of { a, b } per-game point scores
+  winnerId        String?
+  nextMatchId     String?    // where the winner advances
+  nextSlot        String?    // "A" | "B" in the next match
+  loserNextMatchId String?   // where the loser drops (double elimination)
+  loserNextSlot   String?    // "A" | "B" in the loser's next match
+  tournament      Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@index([tournamentId])
 }
 
 model Court {
@@ -86,6 +152,7 @@ model OpenSession {
   clubId       String?       // owning club
   title        String        @default("Open Play")
   description  String        @default("")
+  location     String        @default("") // venue / where the open play is held
   organizer    String        @default("")
   createdById  String?       // owning organizer — only they (or an admin) can manage it
   isPrivate    Boolean       @default(false) // private = only club members can see it

@@ -5,6 +5,7 @@ import { Server } from 'socket.io';
 import { authRoutes } from './auth.js';
 import { sessionRoutes } from './routes.js';
 import { clubRoutes } from './club.js';
+import { tournamentRoutes } from './tournaments.js';
 import { LiveSessionRegistry } from './live.js';
 
 const PORT = Number(process.env.PORT ?? 4000);
@@ -23,6 +24,10 @@ const isPublic = (req: { method: string; url: string }) => {
   if (req.method !== 'GET') return false;
   const path = req.url.split('?')[0];
   return (
+    path === '/discover' ||
+    path === '/clubs' ||
+    /^\/clubs\/[^/]+$/.test(path) ||
+    /^\/tournaments\/[^/]+$/.test(path) ||
     /^\/sessions\/[^/]+$/.test(path) ||
     /^\/sessions\/[^/]+\/(board|standings)$/.test(path) ||
     /^\/sessions\/[^/]+\/players\/[^/]+\/games$/.test(path)
@@ -46,11 +51,13 @@ const registry = new LiveSessionRegistry(io);
 io.on('connection', (socket) => {
   socket.on('join-session', (sessionId: string) => socket.join(`session:${sessionId}`));
   socket.on('join-user', (userId: string) => socket.join(`user:${userId}`));
+  socket.on('join-tournament', (tournamentId: string) => socket.join(`tournament:${tournamentId}`));
 });
 
 authRoutes(app);
 sessionRoutes(app, registry);
 clubRoutes(app, registry);
+tournamentRoutes(app, io);
 
 // auto-confirm reported games older than 10 minutes
 setInterval(() => void registry.autoConfirmAll(), 60_000);

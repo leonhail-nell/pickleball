@@ -113,7 +113,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
       {/* ── hero ────────────────────────────────────────────────── */}
       <Card sx={{ mb: 2 }}>
         <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-          <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}>
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
                 <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.15, letterSpacing: '-0.02em' }}>
@@ -148,6 +148,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 {' – '}
                 {new Date(meta.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                 {` · ${duration}h`}
+                {meta.location ? ` · 📍 ${meta.location}` : ''}
                 {meta.organizer ? ` · hosted by ${meta.organizer}` : ''}
               </Typography>
               <Box sx={{ mt: 1.75, maxWidth: 520 }}>
@@ -167,7 +168,7 @@ export default function SessionPage({ params }: { params: Promise<{ id: string }
                 </Typography>
               </Box>
             </Box>
-            <Stack alignItems="flex-end" spacing={1.5}>
+            <Stack alignItems={{ xs: 'flex-start', md: 'flex-end' }} spacing={1.5} sx={{ flexShrink: 0 }}>
               <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
                 {price}
                 <Typography component="span" variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}> /player</Typography>

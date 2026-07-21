@@ -371,7 +371,7 @@ export class LiveSession {
       });
       await this.audit('game_void', null, { gameId });
     } else {
-      this.engine.finishGame({ teamA, teamB, exhibition }, Date.now());
+      this.engine.finishGame({ teamA: teamA as [string, string], teamB: teamB as [string, string], exhibition }, Date.now());
       await prisma.game.update({
         where: { id: gameId },
         data: {
@@ -398,7 +398,7 @@ export class LiveSession {
     const court = [...this.courts.values()].find((c) => c.gameId === gameId);
     const { teamA, teamB, exhibition } = await this.releaseCourt(gameId);
     const w: 'A' | 'B' = scores.a > scores.b ? 'A' : 'B';
-    this.engine.finishGame({ teamA, teamB, exhibition }, Date.now());
+    this.engine.finishGame({ teamA: teamA as [string, string], teamB: teamB as [string, string], exhibition }, Date.now());
     await prisma.game.update({
       where: { id: gameId },
       data: {

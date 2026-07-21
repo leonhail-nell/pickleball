@@ -7,6 +7,7 @@ import { useClub } from '@/lib/useClub';
 import { TopNav } from '@/components/nav';
 import { CourtCard, QueueRow, UpNextCard, Stars, StatsBar, avatarSrcFor } from '@/components/board';
 import { ConfirmDialog, type ConfirmState } from '@/components/confirm-dialog';
+import { LabeledField } from '@/components/labeled-field';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   Alert, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions,
@@ -820,13 +821,13 @@ export default function HostPage({ params }: { params: Promise<{ id: string }> }
         <DialogTitle>Edit player</DialogTitle>
         <DialogContent>
           <Stack spacing={2} mt={1}>
-            <TextField
-              label="Name" fullWidth autoFocus
+            <LabeledField
+              label="Name" autoFocus
               value={editPlayer?.name ?? ''}
               onChange={(e) => setEditPlayer(editPlayer && { ...editPlayer, name: e.target.value })}
             />
             <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="body2" color="text.secondary">Skill</Typography>
+              <Typography variant="body2" fontWeight={700}>Skill</Typography>
               <Rating
                 precision={0.5} max={5}
                 value={Number(editPlayer?.rating) || 0}

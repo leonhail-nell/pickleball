@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import { avatarSrcFor } from '@/components/board';
+import { LabeledField } from '@/components/labeled-field';
 import { setAuth, getToken } from '@/lib/api';
 import Grid from '@mui/material/Grid2';
 
@@ -182,7 +183,7 @@ export default function MePage() {
               </Button>
             </Stack>
             <Stack spacing={1.5} sx={{ flex: 1, minWidth: 240 }}>
-              <TextField size="small" label="Display name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+              <LabeledField label="Display name" value={editName} onChange={(e) => setEditName(e.target.value)} />
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="body2" color="text.secondary">Skill</Typography>
                 <Rating precision={0.5} max={5} value={editRating} onChange={(_, v) => setEditRating(v ?? editRating)} />

@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, getUser, clearAuth } from '@/lib/api';
 import { TopNav } from '@/components/nav';
+import { Pager } from '@/components/pager';
+import { usePagination } from '@/lib/usePagination';
 import {
   Alert, Box, Button, Card, CardContent, Chip, Dialog, DialogActions, DialogContent,
   DialogTitle, InputAdornment, MenuItem, Select, Stack, TextField, ToggleButton,
@@ -14,6 +17,7 @@ import TvIcon from '@mui/icons-material/Tv';
 import SearchIcon from '@mui/icons-material/Search';
 import LockIcon from '@mui/icons-material/Lock';
 import PublicIcon from '@mui/icons-material/Public';
+import PlaceIcon from '@mui/icons-material/Place';
 import SportsTennisIcon from '@mui/icons-material/SportsTennis';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { ConfirmDialog, type ConfirmState } from '@/components/confirm-dialog';
@@ -24,6 +28,7 @@ interface SessionRow {
   id: string;
   title: string;
   organizer: string;
+  location?: string;
   createdById?: string | null;
   priceCents: number;
   startsAt: string;
@@ -63,6 +68,8 @@ export default function Sessions() {
   const [price, setPrice] = useState('');
   const [courtCount, setCourtCount] = useState(2);
   const [durationH, setDurationH] = useState(3);
+  const [whenAt, setWhenAt] = useState('');
+  const [location, setLocation] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [creating, setCreating] = useState(false);
   const club = useClub();
@@ -105,8 +112,8 @@ export default function Sessions() {
       setError('No courts configured — run the seed or add courts first.');
       return;
     }
-    const now = new Date();
-    const end = new Date(now.getTime() + durationH * 3600_000);
+    const start = whenAt ? new Date(whenAt) : new Date();
+    const end = new Date(start.getTime() + durationH * 3600_000);
     const cap = club && !club.venuePro ? club.freeCourtLimit : courtList.length;
     const n = Math.max(1, Math.min(courtCount, courtList.length, cap));
     setCreating(true);
@@ -114,13 +121,14 @@ export default function Sessions() {
       await api('/sessions', {
         method: 'POST',
         json: {
-          startsAt: now.toISOString(),
+          startsAt: start.toISOString(),
           endsAt: end.toISOString(),
           capacity: 24,
           courtIds: courtList.slice(0, n).map((c) => c.id),
           tierMin: TIERS[tier].min,
           tierMax: TIERS[tier].max,
           title: title || 'Open Play',
+          location: location.trim(),
           organizer: user?.name ?? '',
           priceCents: Math.round(Number(price || 0) * 100),
           isPrivate: visibility === 'private',
@@ -129,6 +137,7 @@ export default function Sessions() {
       setSessions(await api<SessionRow[]>('/sessions'));
       setCreateOpen(false);
       setTitle(''); setPrice(''); setTier('open'); setVisibility('public'); setCourtCount(2); setDurationH(3);
+      setWhenAt(''); setLocation('');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -183,6 +192,7 @@ export default function Sessions() {
     if (filter === 'open') return s.status !== 'CLOSED';
     return true;
   });
+  const paged = usePagination(visible, 8);
 
   const filterOptions = isHost
     ? [['all', 'All sessions'], ['mine', 'My sessions'], ['live', 'Live now'], ['private', 'Members only'], ['open', 'Upcoming & live']]
@@ -192,11 +202,16 @@ export default function Sessions() {
     <>
     <TopNav />
     <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 2, md: 3 } }}>
-      <Stack direction="row" spacing={1.25} alignItems="baseline" mb={2}>
-        <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Sessions</Typography>
-        <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}>
-          {isHost ? 'create & manage play sessions' : 'join an open play near you'}
-        </Typography>
+      <Stack direction="row" spacing={1.25} alignItems="baseline" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
+        <Stack direction="row" spacing={1.25} alignItems="baseline">
+          <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>Open Plays</Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}>
+            {isHost ? "your club's open plays" : 'your club plays & ones you’ve joined'}
+          </Typography>
+        </Stack>
+        <Button variant="text" href="/find" startIcon={<SearchIcon />} sx={{ color: '#2f6b2b', fontWeight: 700 }}>
+          Find a game at another club
+        </Button>
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
@@ -233,7 +248,7 @@ export default function Sessions() {
       </Card>
 
       <Stack spacing={2.5}>
-        {visible.map((s) => {
+        {paged.slice.map((s) => {
           const duration = Math.round(
             (new Date(s.endsAt).getTime() - new Date(s.startsAt).getTime()) / 3600_000,
           );
@@ -242,10 +257,10 @@ export default function Sessions() {
           return (
             <Card key={s.id}>
               <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-                <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2.5}>
+                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
                     <Stack direction="row" spacing={1.25} alignItems="center" flexWrap="wrap" useFlexGap>
-                      <Typography variant="h5" fontWeight={800} noWrap sx={{ letterSpacing: '-0.02em' }}>
+                      <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
                         {s.title || 'Open Play'}
                       </Typography>
                       <Chip
@@ -271,6 +286,7 @@ export default function Sessions() {
                       {' – '}
                       {new Date(s.endsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                       {` · ${duration}h`}
+                      {s.location ? ` · 📍 ${s.location}` : ''}
                       {s.organizer ? ` · hosted by ${s.organizer}` : ''}
                     </Typography>
                     <Box sx={{ mt: 1.75, maxWidth: 640 }}>
@@ -303,13 +319,13 @@ export default function Sessions() {
                     </Stack>
                   </Box>
 
-                  <Stack alignItems="flex-end" spacing={2} sx={{ ml: 'auto' }}>
+                  <Stack alignItems={{ xs: 'flex-start', md: 'flex-end' }} spacing={2} sx={{ ml: { md: 'auto' }, flexShrink: 0 }}>
                     <Typography variant="h4" fontWeight={800} sx={{ letterSpacing: '-0.02em' }}>
                       {s.priceCents > 0 ? `₱${(s.priceCents / 100).toFixed(0)}` : 'Free'}
                       <Typography component="span" variant="body2" sx={{ color: 'rgba(28,42,26,0.5)' }}> /player</Typography>
                     </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent="flex-end">
-                      <Button variant="outlined" href={`/session/${s.id}`}>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+                      <Button variant="outlined" component={Link} href={`/session/${s.id}`}>
                         Details
                       </Button>
                       {s.status !== 'CLOSED' && (
@@ -329,16 +345,16 @@ export default function Sessions() {
                         )
                       )}
                       {s.status === 'LIVE' && (
-                        <Button variant="outlined" startIcon={<TvIcon />} href={`/board/${s.id}`}>
+                        <Button variant="outlined" startIcon={<TvIcon />} component={Link} href={`/board/${s.id}`}>
                           Board
                         </Button>
                       )}
                       {s.status !== 'CLOSED' && mySignups[s.id] && (
-                        <Button variant="outlined" href={`/play/${s.id}`}>My view</Button>
+                        <Button variant="outlined" component={Link} href={`/play/${s.id}`}>My view</Button>
                       )}
                       {canManage(s) && s.status !== 'CLOSED' && (
                         <Button
-                          variant="contained" startIcon={<SportsTennisIcon />} href={`/host/${s.id}`}
+                          variant="contained" startIcon={<SportsTennisIcon />} component={Link} href={`/host/${s.id}`}
                           sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}
                         >
                           {s.status === 'LIVE' ? 'Host' : 'Start'}
@@ -362,14 +378,20 @@ export default function Sessions() {
         {!visible.length && !error && (
           <Card>
             <CardContent sx={{ py: 5, textAlign: 'center' }}>
-              <Typography color="text.secondary">
+              <Typography color="text.secondary" mb={sessions.length ? 0 : 2}>
                 {sessions.length
-                  ? 'No sessions match your search or filter.'
-                  : isHost ? 'No sessions yet — create your first one.' : 'No sessions yet.'}
+                  ? 'No open plays match your search or filter.'
+                  : isHost ? 'No open plays in your club yet — create your first one.' : 'You haven’t joined any open plays yet.'}
               </Typography>
+              {!sessions.length && !isHost && (
+                <Button variant="contained" href="/find" startIcon={<SearchIcon />} sx={{ bgcolor: '#2f6b2b', '&:hover': { bgcolor: '#24551f' } }}>
+                  Find a game to join
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
+        <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} perPage={paged.perPage} onChange={paged.setPage} unit="open plays" />
       </Stack>
 
       {/* ── create-session modal ───────────────────────────────── */}
@@ -393,10 +415,21 @@ export default function Sessions() {
                 <MenuItem key={k} value={k}>{t.label}</MenuItem>
               ))}
             </LabeledField>
+            <LabeledField
+              label="When" type="datetime-local" hint="Leave blank to start now"
+              value={whenAt} onChange={(e) => setWhenAt(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+            <LabeledField
+              label="Where" placeholder="Venue or address (optional)"
+              value={location} onChange={(e) => setLocation(e.target.value)}
+              InputProps={{ startAdornment: <InputAdornment position="start"><PlaceIcon sx={{ fontSize: 18, color: 'rgba(28,42,26,0.4)' }} /></InputAdornment> }}
+            />
             <Stack direction="row" spacing={1.5}>
               <Box sx={{ flex: 1 }}>
                 <LabeledField
                   label="Courts"
+                  hint={isPro ? undefined : `Free plan: up to ${freeLimit} courts`}
                   select value={Math.min(courtCount, maxCourts)}
                   onChange={(e) => setCourtCount(Number(e.target.value))}
                 >
@@ -455,7 +488,9 @@ export default function Sessions() {
               </Typography>
             </Box>
             <Typography variant="caption" sx={{ color: 'rgba(28,42,26,0.5)' }}>
-              Starts now for {durationH} hour{durationH > 1 ? 's' : ''} on {Math.min(courtCount, maxCourts)} court{Math.min(courtCount, maxCourts) > 1 ? 's' : ''}. Add or remove courts once it&apos;s live.
+              Starts {whenAt ? new Date(whenAt).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'now'}
+              {' '}for {durationH} hour{durationH > 1 ? 's' : ''} on {Math.min(courtCount, maxCourts)} court{Math.min(courtCount, maxCourts) > 1 ? 's' : ''}
+              {location.trim() ? ` at ${location.trim()}` : ''}. Add or remove courts once it&apos;s live.
             </Typography>
           </Stack>
         </DialogContent>
