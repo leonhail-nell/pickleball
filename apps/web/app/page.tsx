@@ -121,7 +121,7 @@ export default function Landing() {
       </Container>
 
       {/* ── how it works (white band, light-green step cards) ───── */}
-      <Box sx={{ py: { xs: 6, md: 9 } }}>
+      <Box sx={{ bgcolor: '#ffffff', py: { xs: 6, md: 9 } }}>
         <Container maxWidth="lg">
           <Typography variant="h3" align="center" sx={{ fontSize: { xs: '1.8rem', md: '2.3rem' } }}>
             How it works
