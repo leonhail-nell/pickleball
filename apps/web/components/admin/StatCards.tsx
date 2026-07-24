@@ -1,6 +1,7 @@
 "use client";
 
-import { type AdminStats, peso } from "@/components/admin/types";
+import type { AdminStats } from "@/types/admin";
+import { peso } from "@/constant/format";
 import { Card, CardContent, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 

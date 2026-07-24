@@ -1,7 +1,7 @@
 "use client";
 
 import { QueueRow } from "@/components/board";
-import type { SwapTarget } from "@/components/host/types";
+import type { SwapTarget } from "@/types/host";
 import type { BoardPlayer } from "@/lib/api";
 import {
   Box,

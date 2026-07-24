@@ -1,7 +1,7 @@
 "use client";
 
 import { PlayerAvatar, PlayerStars } from "@/components/board/avatar";
-import { DotClock } from "@/components/board/clock";
+import { LegacyCourtCard } from "@/components/board/legacy-court";
 import { COURT, NET_HATCH, R } from "@/constant/court";
 import type { NamedPlayer } from "@/lib/api";
 import AddIcon from "@mui/icons-material/Add";
@@ -41,9 +41,9 @@ function CourtSeat({
             onClick={() => onSwap(player.id)}
             sx={{
               fontSize: 16,
-              color: "rgba(244,251,239,0.7)",
+              color: "rgba(28,42,26,0.45)",
               cursor: "pointer",
-              "&:hover": { color: "#fff" },
+              "&:hover": { color: COURT.text },
             }}
           />
         )}
@@ -64,20 +64,20 @@ function OpenSeat({ compact, onAdd }: { compact?: boolean; onAdd?: () => void })
           width: size,
           height: size,
           borderRadius: "50%",
-          border: "2px dashed rgba(244,251,239,0.75)",
+          border: "2px dashed #6fa761",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "rgba(244,251,239,0.9)",
+          color: "#4c8a41",
           cursor: onAdd ? "pointer" : "default",
-          bgcolor: "rgba(255,255,255,0.12)",
+          bgcolor: "rgba(255,255,255,0.5)",
         }}
       >
         <AddIcon sx={{ fontSize: compact ? 22 : 28 }} />
       </Box>
       <Typography
         fontWeight={700}
-        sx={{ color: COURT.courtText, fontSize: compact ? "0.78rem" : "0.9rem" }}
+        sx={{ color: COURT.pillText, fontSize: compact ? "0.78rem" : "0.9rem" }}
       >
         Open slot
       </Typography>
@@ -86,10 +86,8 @@ function OpenSeat({ compact, onAdd }: { compact?: boolean; onAdd?: () => void })
 }
 
 /**
- * Court diagram matching the mockup: a green playing surface with a dark net
- * stripe down the middle flanked by two "KITCHEN" labels, and the four player
- * seats in the corners (avatar + name + swap + stars). Empty seats become
- * dashed "Open slot" placeholders.
+ * Court diagram: pale mint surface, dark hatched net flanked by KITCHEN
+ * labels, four corner seats (avatar + name + swap + stars).
  */
 export function CourtSurface({
   teamA,
@@ -126,13 +124,11 @@ export function CourtSurface({
     </Typography>
   );
 
-  const line = `3px solid ${COURT.courtLine}`;
+  const line = `2px solid ${COURT.courtLine}`;
   const cellPy = compact ? 1.5 : 2.25;
 
-  /* one player half: two stacked seats split by a horizontal mid-line.
-     Padding lives inside the cells so zones fill the surface edge-to-edge. */
   const half = (players: NamedPlayer[]) => (
-    <Stack sx={{ position: "relative", zIndex: 1 }}>
+    <Stack sx={{ position: "relative", zIndex: 1, bgcolor: live ? COURT.surfaceAlt : COURT.surface }}>
       <Box
         sx={{
           flex: 1,
@@ -164,35 +160,32 @@ export function CourtSurface({
   return (
     <Box
       sx={{
-        bgcolor: live ? COURT.surfaceAlt : COURT.surface,
-        borderRadius: R.surface,
+        borderRadius: R.court,
         position: "relative",
         overflow: "hidden",
-        border: line,
+        border: `9px solid ${COURT.surface}`,
+        boxShadow: "inset 0 0 0 9px #a3cd94",
         display: "grid",
         gridTemplateColumns: "1fr auto auto auto 1fr",
         alignItems: "stretch",
         columnGap: 0,
+        bgcolor: "#fff",
       }}
     >
-      {/* left half (Team A) */}
       {half(teamA)}
 
-      {/* left kitchen zone — bordered box, full height */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          px: compact ? 0.75 : 2,
-          borderLeft: line,
+          px: compact ? 0.75 : 1.25,
           backgroundColor: COURT.kitchen,
         }}
       >
         {kitchen}
       </Box>
 
-      {/* full-height diagonally-striped net */}
       <Box
         aria-hidden
         sx={{
@@ -202,21 +195,18 @@ export function CourtSurface({
         }}
       />
 
-      {/* right kitchen zone — bordered box, full height */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          px: compact ? 0.75 : 2,
-          borderRight: line,
+          px: compact ? 0.75 : 1.25,
           backgroundColor: COURT.kitchen,
         }}
       >
         {kitchen}
       </Box>
 
-      {/* right half (Team B) */}
       {half(teamB)}
     </Box>
   );
@@ -242,87 +232,51 @@ export function CourtStatusPill({ label }: { label: string }) {
   );
 }
 
+type LegacyProps = Parameters<typeof LegacyCourtCard>[0];
+
 /**
- * Full court card: rounded white card with header (Court N + status pill +
- * live dot timer) wrapping a CourtSurface. `header`/`footer` slots let callers
- * inject extra controls (host actions) without changing the shell.
+ * Unified court card — pale-slot / green-frame mockup look (LegacyCourtCard).
+ * Accepts both the modern prop names (statusLabel, onSwap, compact, header)
+ * and the Venue Pro palette props.
  */
-export function CourtCard({
-  number,
-  label,
-  statusLabel,
-  startedAt,
-  teamA,
-  teamB,
-  onSwap,
-  compact,
-  header,
-  footer,
-  live,
-}: {
-  number?: number;
-  label?: string;
-  statusLabel?: string;
-  startedAt?: number | null;
-  teamA: NamedPlayer[];
-  teamB: NamedPlayer[];
-  onSwap?: (id: string) => void;
-  compact?: boolean;
-  header?: React.ReactNode;
-  footer?: React.ReactNode;
-  live?: boolean;
-}) {
+export function CourtCard(
+  props: {
+    number?: number | string;
+    label?: string;
+    statusLabel?: string;
+    startedAt?: number | null;
+    teamA: NamedPlayer[];
+    teamB: NamedPlayer[];
+    onSwap?: (id: string) => void;
+    compact?: boolean;
+    header?: React.ReactNode;
+    footer?: React.ReactNode;
+    live?: boolean;
+  } & Partial<LegacyProps>,
+) {
+  const onPlayerClick =
+    props.onPlayerClick ??
+    (props.onSwap
+      ? (p: NamedPlayer) => {
+          props.onSwap!(p.id);
+        }
+      : undefined);
+
   return (
-    <Box
-      sx={{
-        bgcolor: COURT.card,
-        borderRadius: R.card,
-        p: compact ? 1.75 : 2.25,
-        border: `1px solid ${COURT.border}`,
-        boxShadow: "0 2px 10px rgba(20,54,26,0.05)",
-      }}
-    >
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={compact ? 1.25 : 1.75}
-        gap={1}
-      >
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={1.25}
-          sx={{ minWidth: 0 }}
-        >
-          {number ? (
-            <Typography
-              fontWeight={900}
-              sx={{
-                color: COURT.text,
-                fontSize: compact ? "1.1rem" : "1.4rem",
-                letterSpacing: "-0.01em",
-              }}
-              noWrap
-            >
-              Court {number}
-              {label ? ` · ${label}` : ""}
-            </Typography>
-          ) : null}
-          {statusLabel && <CourtStatusPill label={statusLabel} />}
-        </Stack>
-        {startedAt != null ? <DotClock startedAt={startedAt} /> : header}
-      </Stack>
-
-      <CourtSurface
-        teamA={teamA}
-        teamB={teamB}
-        onSwap={onSwap}
-        compact={compact}
-        live={live}
-      />
-
-      {footer && <Box mt={compact ? 1.25 : 1.75}>{footer}</Box>}
-    </Box>
+    <LegacyCourtCard
+      number={props.number}
+      title={props.title}
+      label={props.label}
+      chipLabel={props.chipLabel ?? props.statusLabel ?? "Open Play"}
+      startedAt={props.startedAt}
+      teamA={props.teamA}
+      teamB={props.teamB}
+      onPlayerClick={onPlayerClick}
+      onEmptySlotClick={props.onEmptySlotClick}
+      headerRight={props.headerRight ?? props.header}
+      footer={props.footer}
+      size={props.size ?? (props.compact ? "sm" : "md")}
+      palette={props.palette}
+    />
   );
 }

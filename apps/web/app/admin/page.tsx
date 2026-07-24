@@ -13,7 +13,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import Grid from '@mui/material/Grid2';
-import { CourtCard, COURT, type CourtPalette } from '@/components/board';
+import { CourtCard, LEGACY_COURT, type CourtPalette } from '@/components/board';
 import { LabeledField } from '@/components/labeled-field';
 import { usePagination } from '@/lib/usePagination';
 import type { ClubInfo } from '@/lib/useClub';
@@ -33,6 +33,15 @@ interface Plan { id: string; name: string; priceCents: number; period: string }
 interface Member { id: string; name: string; email: string; rating: number; role: string; strikes: number }
 
 const peso = (c: number) => `₱${(c / 100).toLocaleString()}`;
+
+const TABLE_HEAD_SX = {
+  fontSize: '0.68rem',
+  fontWeight: 700,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase' as const,
+  color: 'rgba(28,42,26,0.45)',
+  borderColor: '#eef3ea',
+};
 
 /** Curated preset swatches per court-theme property (first = PicklePlay default). */
 const SWATCHES: Record<keyof CourtPalette, string[]> = {
@@ -413,7 +422,7 @@ export default function AdminPage() {
                 ['netB', 'Net (light stripe)'],
                 ['star', 'Skill stars'],
               ] as [keyof CourtPalette, string][]).map(([key, label]) => {
-                const current = theme[key] ?? COURT[key];
+                const current = theme[key] ?? LEGACY_COURT[key];
                 return (
                   <Stack
                     key={key} direction="row" alignItems="center" spacing={2}
@@ -537,31 +546,34 @@ export default function AdminPage() {
               Add member
             </Button>
           </Stack>
-          <Typography variant="subtitle2" sx={{ mt: 1, mb: 0.5, color: 'text.secondary', letterSpacing: 0.5 }}>
+          <Typography
+            variant="subtitle2"
+            sx={{ mt: 1, mb: 0.75, color: 'rgba(28,42,26,0.45)', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}
+          >
             ORGANIZERS & STAFF
           </Typography>
           <Box sx={{ overflowX: "auto" }}>
           <Table size="small" sx={{ minWidth: 480 }}>
             <TableHead>
               <TableRow>
-                <TableCell>Member</TableCell>
-                <TableCell>Skill</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell align="right">No-shows</TableCell>
-                <TableCell align="right" />
+                <TableCell sx={TABLE_HEAD_SX}>Member</TableCell>
+                <TableCell sx={TABLE_HEAD_SX}>Skill</TableCell>
+                <TableCell sx={TABLE_HEAD_SX}>Role</TableCell>
+                <TableCell sx={TABLE_HEAD_SX} align="right">No-shows</TableCell>
+                <TableCell sx={TABLE_HEAD_SX} align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
               {orgPage.slice.map((u) => (
-                <TableRow key={u.id} hover>
+                <TableRow key={u.id} hover sx={{ '& td': { borderColor: '#eef3ea', py: 1.25 } }}>
                   <TableCell>
-                    <Typography variant="body2" fontWeight={700}>{u.name}</Typography>
+                    <Typography variant="body2" fontWeight={800}>{u.name}</Typography>
                     <Typography variant="caption" color="text.secondary">{u.email}</Typography>
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <Rating readOnly size="small" precision={0.5} max={5} value={u.rating} />
-                      <Typography variant="caption">{u.rating.toFixed(2)}</Typography>
+                      <Typography variant="caption" fontWeight={700}>{u.rating.toFixed(2)}</Typography>
                     </Stack>
                   </TableCell>
                   <TableCell>
@@ -574,9 +586,9 @@ export default function AdminPage() {
                       <MenuItem value="ADMIN">Admin</MenuItem>
                     </Select>
                   </TableCell>
-                  <TableCell align="right">{u.strikes}</TableCell>
+                  <TableCell align="right"><Typography fontWeight={700}>{u.strikes}</Typography></TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => setEditMember({ id: u.id, name: u.name, rating: u.rating })}>
+                    <IconButton size="small" onClick={() => setEditMember({ id: u.id, name: u.name, rating: u.rating })} sx={{ color: 'rgba(28,42,26,0.55)' }}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -591,31 +603,34 @@ export default function AdminPage() {
               page={orgPage.page} onPageChange={(_, p) => orgPage.setPage(p)}
             />
           )}
-          <Typography variant="subtitle2" sx={{ mt: 3, mb: 0.5, color: 'text.secondary', letterSpacing: 0.5 }}>
+          <Typography
+            variant="subtitle2"
+            sx={{ mt: 3, mb: 0.75, color: 'rgba(28,42,26,0.45)', letterSpacing: '0.1em', fontWeight: 700, fontSize: '0.68rem' }}
+          >
             PLAYERS
           </Typography>
           <Box sx={{ overflowX: "auto" }}>
           <Table size="small" sx={{ minWidth: 480 }}>
             <TableHead>
               <TableRow>
-                <TableCell>Member</TableCell>
-                <TableCell>Skill</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell align="right">No-shows</TableCell>
-                <TableCell align="right" />
+                <TableCell sx={TABLE_HEAD_SX}>Member</TableCell>
+                <TableCell sx={TABLE_HEAD_SX}>Skill</TableCell>
+                <TableCell sx={TABLE_HEAD_SX}>Role</TableCell>
+                <TableCell sx={TABLE_HEAD_SX} align="right">No-shows</TableCell>
+                <TableCell sx={TABLE_HEAD_SX} align="right" />
               </TableRow>
             </TableHead>
             <TableBody>
               {playerPage.slice.map((u) => (
-                <TableRow key={u.id} hover>
+                <TableRow key={u.id} hover sx={{ '& td': { borderColor: '#eef3ea', py: 1.25 } }}>
                   <TableCell>
-                    <Typography variant="body2" fontWeight={700}>{u.name}</Typography>
+                    <Typography variant="body2" fontWeight={800}>{u.name}</Typography>
                     <Typography variant="caption" color="text.secondary">{u.email}</Typography>
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <Rating readOnly size="small" precision={0.5} max={5} value={u.rating} />
-                      <Typography variant="caption">{u.rating.toFixed(2)}</Typography>
+                      <Typography variant="caption" fontWeight={700}>{u.rating.toFixed(2)}</Typography>
                     </Stack>
                   </TableCell>
                   <TableCell>
@@ -628,16 +643,16 @@ export default function AdminPage() {
                       <MenuItem value="ADMIN">Admin</MenuItem>
                     </Select>
                   </TableCell>
-                  <TableCell align="right">{u.strikes}</TableCell>
+                  <TableCell align="right"><Typography fontWeight={700}>{u.strikes}</Typography></TableCell>
                   <TableCell align="right">
-                    <IconButton size="small" onClick={() => setEditMember({ id: u.id, name: u.name, rating: u.rating })}>
+                    <IconButton size="small" onClick={() => setEditMember({ id: u.id, name: u.name, rating: u.rating })} sx={{ color: 'rgba(28,42,26,0.55)' }}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
               {!playerUsers.length && (
-                <TableRow><TableCell colSpan={5}><Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No players yet.</Typography></TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} sx={{ borderColor: '#eef3ea' }}><Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>No players yet.</Typography></TableCell></TableRow>
               )}
             </TableBody>
           </Table>

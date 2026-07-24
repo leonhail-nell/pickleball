@@ -14,7 +14,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { PaddleLogo } from './logo';
-import { avatarSrcFor } from './board';
+import { avatarSrcFor } from '@/components/board';
 
 function useActive() {
   const pathname = usePathname();

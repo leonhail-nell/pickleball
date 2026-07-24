@@ -4,7 +4,9 @@ export interface SessionMeta {
   id: string;
   title: string;
   description: string;
+  location?: string;
   organizer: string;
+  createdById?: string | null;
   priceCents: number;
   startsAt: string;
   endsAt: string;
@@ -48,6 +50,8 @@ export interface SessionRow {
   id: string;
   title: string;
   organizer: string;
+  location?: string;
+  createdById?: string | null;
   priceCents: number;
   startsAt: string;
   endsAt: string;
@@ -55,6 +59,7 @@ export interface SessionRow {
   status: string;
   tierMin: number | null;
   tierMax: number | null;
+  isPrivate?: boolean;
   courts: { court: { id: string; number: number } }[];
   _count: { signups: number };
 }
@@ -63,5 +68,5 @@ export interface SessionRow {
 export interface Participant {
   id: string;
   status: string;
-  user: { id: string; name: string; rating: number };
+  user: { id: string; name: string; rating: number; avatarUrl?: string | null };
 }

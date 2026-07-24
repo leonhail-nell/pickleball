@@ -7,6 +7,7 @@ export interface BoardPlayer {
   id: string;
   name: string;
   rating: number;
+  avatarUrl?: string | null;
   gamesPlayed: number;
   status: "active" | "paused" | "playing";
   deficit: number;
@@ -17,6 +18,7 @@ export interface NamedPlayer {
   id: string;
   name: string;
   rating: number;
+  avatarUrl?: string | null;
 }
 
 export interface BoardCourt {
@@ -47,6 +49,7 @@ export interface Board {
   sessionId: string;
   seedHash: string | null;
   rotationsPaused?: boolean;
+  clubTheme?: Record<string, string>;
   courts: BoardCourt[];
   waiting: BoardPlayer[];
   players: BoardPlayer[];

@@ -1,6 +1,6 @@
 "use client";
 
-import type { SessionRow } from "@/components/sessions/types";
+import type { SessionRow } from "@/types/session";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import SportsTennisIcon from "@mui/icons-material/SportsTennis";
 import TvIcon from "@mui/icons-material/Tv";
@@ -43,19 +43,28 @@ export function SessionCard({
   );
 
   return (
-    <Card>
-      <CardContent>
-        <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2}>
+    <Card sx={{ borderRadius: "16px" }}>
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          gap={2}
+        >
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Typography variant="h6" fontWeight={800} noWrap>
+              <Typography
+                variant="h6"
+                fontWeight={800}
+                noWrap
+                sx={{ letterSpacing: "-0.02em" }}
+              >
                 {s.title || "Open Play"}
               </Typography>
-              <Chip size="small" label={s.status} color={statusColor(s.status)} />
+              <Chip size="small" label={s.status} color={statusColor(s.status)} sx={{ fontWeight: 800, height: 24 }} />
               <Chip
                 size="small"
-                color="warning"
                 label={s.tierMin != null ? `${s.tierMin}–${s.tierMax ?? "∞"}` : "All Levels"}
+                sx={{ bgcolor: "#fdf1d7", color: "#b07f24", fontWeight: 800, height: 24 }}
               />
             </Stack>
             <Typography color="text.secondary" variant="body2" mt={0.5}>
@@ -105,8 +114,13 @@ export function SessionCard({
             </Stack>
           </Box>
 
-          <Stack alignItems="flex-end" spacing={1} justifyContent="space-between">
-            <Typography variant="h6" fontWeight={800}>
+          <Stack
+            alignItems={{ xs: "flex-start", sm: "flex-end" }}
+            spacing={1.25}
+            justifyContent="space-between"
+            sx={{ flexShrink: 0 }}
+          >
+            <Typography variant="h6" fontWeight={800} sx={{ letterSpacing: "-0.02em" }}>
               {s.priceCents > 0 ? `₱${(s.priceCents / 100).toFixed(0)}` : "Free"}
               <Typography component="span" variant="caption" color="text.secondary">
                 {" "}
@@ -118,7 +132,7 @@ export function SessionCard({
               spacing={1}
               flexWrap="wrap"
               useFlexGap
-              justifyContent="flex-end"
+              justifyContent={{ xs: "flex-start", sm: "flex-end" }}
             >
               <Button variant="outlined" size="small" href={`/session/${s.id}`}>
                 Details

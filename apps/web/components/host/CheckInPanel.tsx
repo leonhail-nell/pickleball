@@ -1,7 +1,8 @@
 "use client";
 
-import { CheckInRow } from "@/components/board";
-import type { EditTarget, Member } from "@/components/host/types";
+import { CheckInRow, TEAM_GREEN } from "@/components/board";
+import { LabeledField } from "@/components/labeled-field";
+import type { EditTarget, Member } from "@/types/host";
 import EditIcon from "@mui/icons-material/Edit";
 import {
   Button,
@@ -39,27 +40,34 @@ export function CheckInPanel({
   onEdit: (target: EditTarget) => void;
 }) {
   return (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
+    <Card sx={{ borderRadius: "16px" }}>
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Typography
+          variant="h6"
+          fontWeight={800}
+          gutterBottom
+          sx={{ letterSpacing: "-0.02em" }}
+        >
           Check in a player
         </Typography>
-        <Stack spacing={1} mb={1.5}>
-          <TextField
-            size="small"
+        <Stack spacing={1.5} mb={2}>
+          <LabeledField
             label="Walk-in guest name"
+            size="small"
             fullWidth
+            placeholder="Walk-in guest name"
             value={guestName}
             onChange={(e) => onGuestName(e.target.value)}
           />
           <Stack
             direction="row"
-            spacing={1}
-            alignItems="center"
-            justifyContent="space-between"
+            spacing={1.5}
+            alignItems="flex-end"
+            flexWrap="wrap"
+            useFlexGap
           >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="body2" color="text.secondary">
+            <Stack spacing={0.75} sx={{ flex: 1, minWidth: 140 }}>
+              <Typography variant="body2" fontWeight={700}>
                 Skill
               </Typography>
               <Rating
@@ -74,6 +82,12 @@ export function CheckInPanel({
               size="small"
               disabled={!guestName.trim()}
               onClick={onAddGuest}
+              sx={{
+                mb: "1px",
+                bgcolor: TEAM_GREEN,
+                fontWeight: 800,
+                "&:hover": { bgcolor: "#24551f" },
+              }}
             >
               Add & check in
             </Button>
@@ -85,7 +99,7 @@ export function CheckInPanel({
           placeholder="Search members…"
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          sx={{ mb: 1 }}
+          sx={{ mb: 1.5 }}
         />
         <Stack spacing={1}>
           {members.slice(0, 8).map((m) => (
@@ -97,11 +111,27 @@ export function CheckInPanel({
                   <IconButton
                     size="small"
                     title="Edit name/rating"
-                    onClick={() => onEdit({ id: m.id, name: m.name, rating: m.rating.toFixed(2) })}
+                    onClick={() =>
+                      onEdit({
+                        id: m.id,
+                        name: m.name,
+                        rating: m.rating.toFixed(2),
+                      })
+                    }
+                    sx={{ color: "rgba(28,42,26,0.55)" }}
                   >
                     <EditIcon fontSize="small" />
                   </IconButton>
-                  <Button size="small" variant="outlined" onClick={() => onCheckIn(m.id)}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => onCheckIn(m.id)}
+                    sx={{
+                      fontWeight: 700,
+                      borderColor: "#cfe3c6",
+                      color: TEAM_GREEN,
+                    }}
+                  >
                     Check in
                   </Button>
                 </>

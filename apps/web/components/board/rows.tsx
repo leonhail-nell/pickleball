@@ -1,9 +1,10 @@
 "use client";
 
-import { PlayerAvatar, PlayerStars } from "@/components/board/avatar";
+import { PlayerAvatar, PlayerStars, avatarSrcFor } from "@/components/board/avatar";
 import { COURT, R } from "@/constant/court";
+import type { BoardPlayer } from "@/types/board";
 import type { NamedPlayer } from "@/lib/api";
-import { Box, Stack, Typography } from "@mui/material";
+import { Avatar, Box, Chip, Stack, Typography } from "@mui/material";
 
 /**
  * Waiting-queue row (mockup): rank number, avatar, name, stars + "Ng · X/Y"
@@ -14,45 +15,64 @@ export function QueueRow({
   player,
   highlight,
   actions,
+  draggable = false,
+  onDragStart,
 }: {
-  rank: number;
-  player: {
-    id: string;
-    name: string;
-    rating: number;
-    gamesPlayed?: number;
-    coverage?: { played: number; total: number };
-    avatarUrl?: string | null;
-  };
+  rank?: number;
+  player:
+    | BoardPlayer
+    | {
+        id: string;
+        name: string;
+        rating: number;
+        gamesPlayed?: number;
+        coverage?: { played: number; total: number };
+        avatarUrl?: string | null;
+        deficit?: number;
+      };
   highlight?: boolean;
   actions?: React.ReactNode;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
 }) {
+  const showYou = highlight && "status" in player;
   return (
     <Stack
       direction="row"
       alignItems="center"
-      spacing={1.5}
+      spacing={1.25}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      className={draggable ? "draggable" : undefined}
       sx={{
-        pl: 1.5,
+        pl: rank != null ? 1.25 : 1.5,
         pr: 1.75,
         py: 1.1,
         borderRadius: R.row,
-        bgcolor: highlight ? "rgba(245,166,35,0.14)" : "#e6f2dc",
-        border: "1px solid rgba(47,125,50,0.1)",
+        bgcolor: highlight ? "#e4f1dd" : "#e6f2dc",
+        border: `1px solid ${highlight ? "#a9d29a" : "rgba(47,125,50,0.1)"}`,
+        ...(draggable && { cursor: "grab" }),
+        "&:hover": { bgcolor: "#ecf4e8", borderColor: "#cfe3c6" },
       }}
     >
-      <Typography
-        sx={{
-          width: 20,
-          textAlign: "center",
-          color: "rgba(20,54,26,0.5)",
-          fontWeight: 800,
-          fontSize: "1rem",
-        }}
-      >
-        {rank || ""}
-      </Typography>
-      <PlayerAvatar name={player.name} avatarUrl={player.avatarUrl} size={44} />
+      {rank != null && (
+        <Typography
+          sx={{
+            width: 20,
+            textAlign: "center",
+            color: "rgba(20,54,26,0.5)",
+            fontWeight: 800,
+            fontSize: rank ? "0.75rem" : "1rem",
+          }}
+        >
+          {rank || ""}
+        </Typography>
+      )}
+      <Avatar
+        src={avatarSrcFor(player)}
+        alt={player.name}
+        sx={{ width: 34, height: 34, bgcolor: "#d1e7c9", flexShrink: 0 }}
+      />
       <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography fontWeight={800} noWrap sx={{ color: COURT.text }}>
           {player.name}
@@ -62,7 +82,7 @@ export function QueueRow({
           {(player.gamesPlayed != null || player.coverage) && (
             <Typography
               variant="caption"
-              sx={{ color: "rgba(20,54,26,0.6)", fontWeight: 600 }}
+              sx={{ color: "rgba(20,54,26,0.6)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}
             >
               {player.gamesPlayed ?? 0}g
               {player.coverage
@@ -72,6 +92,12 @@ export function QueueRow({
           )}
         </Stack>
       </Box>
+      {showYou && (
+        <Chip size="small" label="You" sx={{ bgcolor: "#2f6b2b", color: "#fff", fontWeight: 800, height: 20 }} />
+      )}
+      {"deficit" in player && player.deficit != null && player.deficit > 0 && (
+        <Chip size="small" label={`+${player.deficit}`} color="warning" sx={{ height: 20 }} />
+      )}
       {actions && (
         <Stack direction="row" spacing={0.25} alignItems="center">
           {actions}

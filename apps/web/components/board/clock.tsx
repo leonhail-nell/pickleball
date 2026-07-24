@@ -32,14 +32,17 @@ export function DotClock({ startedAt }: { startedAt: number | null }) {
       spacing={0.75}
       alignItems="center"
       flexShrink={0}
-      sx={{ px: 1.5, py: 0.6, borderRadius: 999, bgcolor: "#eef7e8" }}
     >
       <Box
         sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: COURT.liveDot }}
       />
       <Typography
         fontWeight={800}
-        sx={{ color: COURT.text, fontVariantNumeric: "tabular-nums" }}
+        sx={{
+          color: COURT.text,
+          fontVariantNumeric: "tabular-nums",
+          fontSize: "0.95rem",
+        }}
       >
         {elapsedLabel(startedAt)}
       </Typography>

@@ -1,6 +1,9 @@
 "use client";
 
-import { Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { avatarSrcFor, Stars } from "@/components/board/avatar";
+import { LEGACY_COURT } from "@/constant/court";
+import type { BoardPlayer } from "@/types/board";
+import { Avatar, Badge, Box, CircularProgress, Stack, Typography } from "@mui/material";
 
 /** COURTS n · PLAYERS n · QUEUE n header strip. */
 export function StatsBar({
@@ -71,6 +74,82 @@ export function CoverageRing({
         <Typography variant="caption" fontWeight={700}>
           {played}
         </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * Fairness-check tile: avatar with an on-court dot, games + partner coverage,
+ * and an amber progress bar (design-system "Fairness check" card).
+ */
+export function CoverageTile({ player }: { player: BoardPlayer }) {
+  const pct = player.coverage.total
+    ? Math.min(100, (player.coverage.played / player.coverage.total) * 100)
+    : 0;
+  return (
+    <Box
+      sx={{
+        bgcolor: "#ffffff",
+        border: "1px solid #e7efe2",
+        borderRadius: "14px",
+        p: 1.75,
+        display: "flex",
+        gap: 1.75,
+        alignItems: "center",
+        height: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      <Badge
+        overlap="circular"
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        variant="dot"
+        invisible={player.status !== "playing"}
+        sx={{
+          "& .MuiBadge-dot": {
+            bgcolor: "#22c55e",
+            width: 13,
+            height: 13,
+            borderRadius: "50%",
+            border: "2.5px solid #ffffff",
+            top: 5,
+            right: 5,
+          },
+        }}
+      >
+        <Avatar
+          src={avatarSrcFor(player)}
+          alt={player.name}
+          sx={{ width: 56, height: 56, bgcolor: "#d1e7c9" }}
+        />
+      </Badge>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography noWrap sx={{ fontWeight: 800, fontSize: "1rem", color: LEGACY_COURT.ink }}>
+          {player.name}
+          {player.status === "paused" ? " ⏸" : ""}
+        </Typography>
+        <Typography variant="caption" sx={{ color: "rgba(28,42,26,0.55)", display: "block" }}>
+          {player.gamesPlayed} games · {player.coverage.played}/{player.coverage.total} partners
+        </Typography>
+        <Box
+          sx={{
+            mt: 0.9,
+            height: 5,
+            borderRadius: 999,
+            bgcolor: "rgba(28,42,26,0.10)",
+            overflow: "hidden",
+          }}
+        >
+          <Box
+            sx={{
+              width: `${pct}%`,
+              height: "100%",
+              borderRadius: 999,
+              bgcolor: LEGACY_COURT.star,
+            }}
+          />
+        </Box>
       </Box>
     </Box>
   );

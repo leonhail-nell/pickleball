@@ -5,11 +5,16 @@ import { prisma } from '@pickleplay/db';
 export async function ensureSessionPayment(sessionId: string, userId: string): Promise<void> {
   const session = await prisma.openSession.findUniqueOrThrow({
     where: { id: sessionId },
-    select: { priceCents: true },
+    select: { priceCents: true, clubId: true },
   });
   if (session.priceCents <= 0) return;
   const activeMembership = await prisma.membership.findFirst({
-    where: { userId, endsAt: { gt: new Date() }, plan: { dropInFree: true, isActive: true } },
+    where: {
+      userId,
+      endsAt: { gt: new Date() },
+      ...(session.clubId ? { clubId: session.clubId } : {}),
+      plan: { dropInFree: true, isActive: true },
+    },
   });
   await prisma.payment.upsert({
     where: { userId_sessionId: { userId, sessionId } },

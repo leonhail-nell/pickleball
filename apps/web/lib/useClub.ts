@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from './api';
-import type { CourtPalette } from '@/components/board';
+import type { CourtPalette } from '@/constant/court';
 
 export interface ClubInfo {
   name: string;

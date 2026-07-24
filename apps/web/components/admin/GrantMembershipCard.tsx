@@ -1,6 +1,6 @@
 "use client";
 
-import type { Member, Plan } from "@/components/admin/types";
+import type { Member, Plan } from "@/types/admin";
 import {
   Button,
   Card,

@@ -1,6 +1,6 @@
 "use client";
 
-import type { EditTarget } from "@/components/host/types";
+import type { EditTarget } from "@/types/host";
 import {
   Button,
   Dialog,

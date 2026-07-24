@@ -1,6 +1,6 @@
 "use client";
 
-import type { Club } from "@/components/admin/types";
+import type { Club } from "@/types/admin";
 import {
   Box,
   Button,

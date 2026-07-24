@@ -5,6 +5,7 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import {
+  Box,
   Button,
   Card,
   CardContent,
@@ -139,47 +140,81 @@ export function MyStatusPanel({
       </Stack>
 
       {myPending.length > 0 && (
-        <Card sx={{ borderColor: "rgba(251,191,36,0.6)" }}>
-          <CardContent>
-            <Typography variant="subtitle2" gutterBottom>
-              Confirm score
-            </Typography>
-            {myPending.map((p) => {
-              const iReported = p.reportedById === me.id;
-              return (
-                <Stack key={p.gameId} spacing={1} mb={1}>
-                  <Typography variant="body2">
-                    {p.teamA.map((x) => x.name).join(" + ")} <strong>{p.a}</strong> —{" "}
-                    <strong>{p.b}</strong> {p.teamB.map((x) => x.name).join(" + ")}
-                    {p.disputed && " · ⚠️ disputed (host will resolve)"}
-                  </Typography>
-                  {!iReported && !p.disputed && (
-                    <Stack direction="row" spacing={1}>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        onClick={() => onConfirmOrDispute(p.gameId, "confirm")}
+        <Card sx={{ borderRadius: "16px", borderColor: "rgba(251,191,36,0.45)" }}>
+          <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+            <Stack direction="row" spacing={1.25} alignItems="baseline" mb={1.5}>
+              <Typography variant="h6" fontWeight={800} sx={{ letterSpacing: "-0.02em" }}>
+                Confirm score
+              </Typography>
+              <Typography variant="body2" sx={{ color: "rgba(28,42,26,0.45)" }}>
+                {myPending.length} pending
+              </Typography>
+            </Stack>
+            <Stack spacing={1}>
+              {myPending.map((p) => {
+                const iReported = p.reportedById === me.id;
+                return (
+                  <Stack
+                    key={p.gameId}
+                    direction={{ xs: "column", sm: "row" }}
+                    alignItems={{ xs: "stretch", sm: "center" }}
+                    spacing={1.25}
+                    sx={{
+                      pl: 1.5,
+                      pr: 1.25,
+                      py: 1.15,
+                      borderRadius: "14px",
+                      bgcolor: "#fdf8ef",
+                      border: "1px solid rgba(251,191,36,0.35)",
+                    }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography sx={{ fontWeight: 800, fontSize: "0.9rem", color: "#1c2a1a" }}>
+                        {p.teamA.map((x) => x.name).join(" + ")}{" "}
+                        <strong>{p.a}</strong> — <strong>{p.b}</strong>{" "}
+                        {p.teamB.map((x) => x.name).join(" + ")}
+                      </Typography>
+                      {p.disputed && (
+                        <Typography variant="caption" sx={{ color: "#a04a35", fontWeight: 700 }}>
+                          Disputed — host will resolve
+                        </Typography>
+                      )}
+                      {iReported && !p.disputed && (
+                        <Typography variant="caption" color="text.secondary">
+                          Waiting for the other team (auto-confirms in 10 min)
+                        </Typography>
+                      )}
+                    </Box>
+                    {!iReported && !p.disputed && (
+                      <Stack
+                        direction="row"
+                        spacing={0.75}
+                        justifyContent={{ xs: "flex-start", sm: "flex-end" }}
+                        sx={{ flexShrink: 0 }}
                       >
-                        Confirm
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        color="error"
-                        onClick={() => onConfirmOrDispute(p.gameId, "dispute")}
-                      >
-                        Dispute
-                      </Button>
-                    </Stack>
-                  )}
-                  {iReported && !p.disputed && (
-                    <Typography variant="caption" color="text.secondary">
-                      Waiting for the other team (auto-confirms in 10 min)
-                    </Typography>
-                  )}
-                </Stack>
-              );
-            })}
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => onConfirmOrDispute(p.gameId, "confirm")}
+                          sx={{ bgcolor: "#2f6b2b", fontWeight: 800, "&:hover": { bgcolor: "#24551f" } }}
+                        >
+                          Confirm
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={() => onConfirmOrDispute(p.gameId, "dispute")}
+                          sx={{ fontWeight: 700 }}
+                        >
+                          Dispute
+                        </Button>
+                      </Stack>
+                    )}
+                  </Stack>
+                );
+              })}
+            </Stack>
           </CardContent>
         </Card>
       )}

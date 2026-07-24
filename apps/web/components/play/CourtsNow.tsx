@@ -31,10 +31,10 @@ export function CourtsNow({ board, meId }: { board: Board; meId: string }) {
         <Box sx={{ mt: 1.5 }}>
           <CourtCard
             compact
-            statusLabel="Next match"
+            title="Next match"
+            chipLabel="Auto"
             teamA={board.nextMatch.teamA}
             teamB={board.nextMatch.teamB}
-            header={<Chip size="small" label="Auto" color="success" sx={{ height: 18 }} />}
           />
         </Box>
       )}

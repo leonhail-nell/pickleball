@@ -7,16 +7,16 @@ import { createTheme } from '@mui/material/styles';
 export const theme = createTheme({
   palette: {
     mode: 'light',
-    primary: { main: '#22c55e', dark: '#16a34a', contrastText: '#ffffff' },
-    secondary: { main: '#16a34a' },
-    success: { main: '#16a34a' },
+    primary: { main: '#2f6b2b', dark: '#24551f', contrastText: '#ffffff' },
+    secondary: { main: '#4c9a44' },
+    success: { main: '#4c9a44' },
     warning: { main: '#f59e0b' },
     error: { main: '#ef4444' },
-    background: { default: '#f0fdf4', paper: '#ffffff' },
-    text: { primary: '#111827', secondary: '#6b7280' },
-    divider: 'rgba(17,24,39,0.10)',
+    background: { default: '#f0f7f2', paper: '#ffffff' },
+    text: { primary: '#1c2a1a', secondary: '#6b7280' },
+    divider: 'rgba(28,42,26,0.10)',
   },
-  shape: { borderRadius: 12 },
+  shape: { borderRadius: 14 },
   typography: {
     fontFamily:
       '"Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif',

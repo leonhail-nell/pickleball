@@ -50,8 +50,8 @@ export function HostHeader({
           gap={1}
         >
           <Box>
-            <Typography variant="h5" fontWeight={800}>
-              Host console
+            <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: "-0.02em" }}>
+              Open Play · Courts
             </Typography>
             <StatsBar courts={courts} players={players} queue={queue} />
           </Box>

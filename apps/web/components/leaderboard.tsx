@@ -7,7 +7,7 @@ import {
   TableCell, TableHead, TableRow, Typography,
 } from '@mui/material';
 import MilitaryTechIcon from '@mui/icons-material/MilitaryTech';
-import { avatarSrcFor } from './board';
+import { avatarSrcFor } from '@/components/board';
 
 const MEDALS = ['#e8a812', '#8fa3b5', '#c96a1b']; // gold, silver, bronze
 
@@ -87,17 +87,26 @@ export function Leaderboard({
                     <Typography noWrap sx={{ fontWeight: 800, fontSize: dense ? '0.9rem' : '1.05rem' }}>
                       {r.name}
                     </Typography>
-                    <Typography variant="caption" fontWeight={700} color={r.diff >= 0 ? 'success.main' : 'error.main'}>
+                    <Typography
+                      variant="caption"
+                      fontWeight={700}
+                      sx={{ color: 'rgba(28,42,26,0.45)' }}
+                    >
                       {r.diff >= 0 ? `+${r.diff}` : r.diff}
                     </Typography>
                   </Box>
                 </Stack>
               </TableCell>
               <TableCell align="right">
-                <Typography sx={{ fontWeight: 800, fontSize: dense ? '0.9rem' : '1.05rem', whiteSpace: 'nowrap' }}>
-                  <Box component="span" sx={{ color: 'success.main' }}>{r.wins}</Box>
-                  <Box component="span" sx={{ color: 'rgba(28,42,26,0.35)' }}>{' – '}</Box>
-                  <Box component="span" sx={{ color: 'error.main' }}>{r.losses}</Box>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: dense ? '0.9rem' : '1.05rem',
+                    whiteSpace: 'nowrap',
+                    color: '#2f6b2b',
+                  }}
+                >
+                  {r.wins} – {r.losses}
                 </Typography>
               </TableCell>
               <TableCell align="right">

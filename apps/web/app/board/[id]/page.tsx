@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import { api, type Standing } from '@/lib/api';
 import { useBoard } from '@/lib/useBoard';
-import { CourtCard, UpNextCard, StatsBar, CoverageTile } from '@/components/board';
+import { CourtCard, UpNextCard, StatsBar, CoverageTile, PAGE_BG } from '@/components/board';
 import { Leaderboard } from '@/components/leaderboard';
 import { TopNav } from '@/components/nav';
 import {
@@ -30,6 +30,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
   return (
     <>
     <TopNav />
+    <Box sx={{ bgcolor: PAGE_BG, minHeight: 'calc(100vh - 64px)' }}>
     <Box className="tv" sx={{ maxWidth: 1500, mx: 'auto', p: { xs: 2, md: 3 } }}>
       {youreUp && (
         <Alert severity="success" sx={{ mb: 2, fontSize: '1.4rem' }}>
@@ -178,6 +179,7 @@ export default function BoardPage({ params }: { params: Promise<{ id: string }> 
       <Typography variant="caption" color="text.secondary" display="block" mt={4}>
         🔒 Fair play guaranteed — every matchup is drawn by a verified random shuffle.
       </Typography>
+    </Box>
     </Box>
     </>
   );

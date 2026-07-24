@@ -1,6 +1,7 @@
 "use client";
 
-import { type Plan, peso } from "@/components/admin/types";
+import type { Plan } from "@/types/admin";
+import { peso } from "@/constant/format";
 import {
   Button,
   Card,

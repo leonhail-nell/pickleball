@@ -1,13 +1,13 @@
 "use client";
 
-import { TeamPanel, TEAM_BLUE, TEAM_ORANGE } from "@/components/board";
+import { CourtCard, TEAM_GREEN, TEAM_ORANGE } from "@/components/board";
 import { Box, Button, Card, Chip, Container, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 
 const DEMO_COURTS = [
   {
     court: 1,
-    t: "5:08",
+    mins: 5,
     a: [
       { id: "m1", name: "Greg", rating: 3.9 },
       { id: "m2", name: "Ivan", rating: 2.8 },
@@ -19,7 +19,7 @@ const DEMO_COURTS = [
   },
   {
     court: 2,
-    t: "6:22",
+    mins: 6,
     a: [
       { id: "m5", name: "Ena", rating: 4.1 },
       { id: "m6", name: "Chelle", rating: 2.9 },
@@ -48,80 +48,84 @@ export function AppPreview() {
       <Typography align="center" color="text.secondary" mb={4} mt={1}>
         One screen to run the session — one public board for players who want live updates.
       </Typography>
-      <Card sx={{ maxWidth: 860, mx: "auto", overflow: "hidden" }}>
-        <Box sx={{ bgcolor: "#111827", color: "#f9fafb", px: 2.5, py: 1.25 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography fontWeight={800}>Friday Night Open Play</Typography>
-            <Stack direction="row" spacing={2}>
-              <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                GAMES <b>12</b>
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                COURTS <b>2/2</b>
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                QUEUE <b>4</b>
-              </Typography>
+      <Card sx={{ maxWidth: 860, mx: "auto", overflow: "hidden", borderRadius: "16px" }}>
+        <Box sx={{ px: 2.5, py: 1.5, borderBottom: "1px solid #eef3ea" }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            flexWrap="wrap"
+            gap={1}
+          >
+            <Typography fontWeight={800} sx={{ letterSpacing: "-0.02em" }}>
+              Friday Night Open Play
+            </Typography>
+            <Stack direction="row" spacing={0.75}>
+              {[["Games", "12"], ["Courts", "2/2"], ["Queue", "4"]].map(([k, v]) => (
+                <Chip
+                  key={k}
+                  size="small"
+                  label={`${k} ${v}`}
+                  sx={{ bgcolor: "#e2f2dc", color: "#2f6b2b", fontWeight: 700, height: 22 }}
+                />
+              ))}
             </Stack>
           </Stack>
         </Box>
-        <Box sx={{ p: 2.5 }}>
+        <Box sx={{ p: 2.5, bgcolor: "#f0f7f2" }}>
           <Grid container spacing={2}>
             {DEMO_COURTS.map((m) => (
               <Grid key={m.court} size={{ xs: 12, sm: 6 }}>
-                <Card sx={{ overflow: "hidden" }}>
-                  <Box sx={{ bgcolor: "#111827", color: "#f9fafb", px: 1.5, py: 0.75 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2" fontWeight={800}>
-                        Court {m.court}
-                      </Typography>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Chip
-                          size="small"
-                          label="● LIVE"
-                          sx={{ bgcolor: "#ef4444", color: "#fff", fontWeight: 800, height: 18 }}
-                        />
-                        <Typography variant="caption" fontWeight={700}>
-                          {m.t}
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                  </Box>
-                  <Box sx={{ p: 1.5 }}>
+                <CourtCard
+                  size="sm"
+                  number={m.court}
+                  startedAt={Date.now() - m.mins * 60_000}
+                  teamA={m.a}
+                  teamB={m.b}
+                  footer={
                     <Stack direction="row" spacing={1}>
-                      <TeamPanel label="Team 1" players={m.a} color={TEAM_BLUE} />
-                      <TeamPanel label="Team 2" players={m.b} color={TEAM_ORANGE} />
-                    </Stack>
-                    <Stack direction="row" spacing={1} mt={1.5}>
                       <Button
                         fullWidth
                         size="small"
-                        sx={{ bgcolor: TEAM_BLUE, color: "#fff", pointerEvents: "none" }}
+                        sx={{
+                          bgcolor: TEAM_GREEN,
+                          color: "#fff",
+                          fontWeight: 700,
+                          pointerEvents: "none",
+                        }}
                       >
                         Team 1 Wins
                       </Button>
                       <Button
                         fullWidth
                         size="small"
-                        sx={{ bgcolor: TEAM_ORANGE, color: "#fff", pointerEvents: "none" }}
+                        sx={{
+                          bgcolor: TEAM_ORANGE,
+                          color: "#fff",
+                          fontWeight: 700,
+                          pointerEvents: "none",
+                        }}
                       >
                         Team 2 Wins
                       </Button>
                     </Stack>
-                  </Box>
-                </Card>
+                  }
+                />
               </Grid>
             ))}
           </Grid>
           <Box mt={2}>
-            <Typography variant="h6" color="text.secondary" mb={1}>
-              Next up
+            <Typography variant="subtitle2" color="text.secondary" mb={1}>
+              Waiting queue
             </Typography>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               {DEMO_QUEUE.map(([n, g], i) => (
-                <Chip key={n} label={`${i + 1}. ${n} · ${g}g`} variant="outlined" />
+                <Chip
+                  key={n}
+                  label={`${i + 1}. ${n} · ${g}g`}
+                  sx={{ bgcolor: "#e6f2dc", fontWeight: 700 }}
+                />
               ))}
-              <Chip color="success" label="Auto-matched" sx={{ ml: "auto" }} />
             </Stack>
           </Box>
         </Box>

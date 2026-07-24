@@ -1,6 +1,6 @@
 "use client";
 
-import type { ScoreTarget } from "@/components/host/types";
+import type { ScoreTarget } from "@/types/host";
 import {
   Button,
   Chip,

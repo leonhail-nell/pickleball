@@ -1,7 +1,7 @@
 "use client";
 
 import { MembersTable } from "@/components/admin/MembersTable";
-import type { EditMemberTarget, Member } from "@/components/admin/types";
+import type { EditMemberTarget, Member } from "@/types/admin";
 import {
   Button,
   Card,

@@ -1,7 +1,7 @@
 "use client";
 
 import { QueueRow } from "@/components/board";
-import type { EditTarget } from "@/components/host/types";
+import type { EditTarget } from "@/types/host";
 import type { BoardPlayer } from "@/lib/api";
 import EditIcon from "@mui/icons-material/Edit";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -41,21 +41,40 @@ export function QueueRail({
   const q = search.trim().toLowerCase();
 
   return (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Waiting queue{" "}
-          <Typography component="span" variant="caption" color="text.secondary">
-            (drag onto a court)
+    <Card sx={{ borderRadius: "16px" }}>
+      <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <Stack
+          direction="row"
+          spacing={1.25}
+          alignItems="baseline"
+          flexWrap="wrap"
+          useFlexGap
+          mb={0.5}
+        >
+          <Typography variant="h6" fontWeight={800} sx={{ letterSpacing: "-0.02em" }}>
+            Waiting queue
           </Typography>
-        </Typography>
+          <Chip
+            size="small"
+            label={`${waiting.length} waiting`}
+            sx={{
+              bgcolor: "#e2f2dc",
+              color: "#2f6b2b",
+              fontWeight: 800,
+              height: 22,
+            }}
+          />
+          <Typography variant="caption" sx={{ color: "rgba(28,42,26,0.45)" }}>
+            drag onto a court
+          </Typography>
+        </Stack>
         <TextField
           size="small"
           fullWidth
           placeholder="Search the queue…"
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          sx={{ mb: 1.5 }}
+          sx={{ mb: 1.5, mt: 1 }}
         />
         <Stack spacing={1}>
           {waiting
@@ -75,15 +94,32 @@ export function QueueRail({
                   actions={
                     <>
                       {p.deficit > 0 && (
-                        <Chip size="small" label={`+${p.deficit}`} color="warning" sx={{ mr: 0.5 }} />
+                        <Chip
+                          size="small"
+                          label={`+${p.deficit}`}
+                          color="warning"
+                          sx={{ mr: 0.5 }}
+                        />
                       )}
-                      <IconButton size="small" title="Pause player" onClick={() => onPause(p.id)}>
+                      <IconButton
+                        size="small"
+                        title="Pause player"
+                        onClick={() => onPause(p.id)}
+                        sx={{ color: "rgba(28,42,26,0.55)" }}
+                      >
                         <PauseIcon fontSize="small" />
                       </IconButton>
                       <IconButton
                         size="small"
                         title="Edit name/rating"
-                        onClick={() => onEdit({ id: p.id, name: p.name, rating: p.rating.toFixed(2) })}
+                        onClick={() =>
+                          onEdit({
+                            id: p.id,
+                            name: p.name,
+                            rating: p.rating.toFixed(2),
+                          })
+                        }
+                        sx={{ color: "rgba(28,42,26,0.55)" }}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
@@ -91,6 +127,7 @@ export function QueueRail({
                         size="small"
                         title="Remove from session"
                         onClick={() => onRemove(p.id, p.name)}
+                        sx={{ color: "#a04a35" }}
                       >
                         <PersonRemoveIcon fontSize="small" />
                       </IconButton>
@@ -106,14 +143,24 @@ export function QueueRail({
                 player={p}
                 actions={
                   <>
-                    <Chip size="small" label="paused" variant="outlined" sx={{ mr: 0.5 }} />
-                    <IconButton size="small" title="Resume player" onClick={() => onResume(p.id)}>
+                    <Chip
+                      size="small"
+                      label="paused"
+                      variant="outlined"
+                      sx={{ mr: 0.5 }}
+                    />
+                    <IconButton
+                      size="small"
+                      title="Resume player"
+                      onClick={() => onResume(p.id)}
+                    >
                       <PlayArrowIcon fontSize="small" />
                     </IconButton>
                     <IconButton
                       size="small"
                       title="Remove from session"
                       onClick={() => onRemove(p.id, p.name)}
+                      sx={{ color: "#a04a35" }}
                     >
                       <PersonRemoveIcon fontSize="small" />
                     </IconButton>
@@ -122,6 +169,11 @@ export function QueueRail({
               />
             </Box>
           ))}
+          {!waiting.length && !paused.length && (
+            <Typography variant="body2" color="text.secondary">
+              Nobody waiting — check players in below.
+            </Typography>
+          )}
         </Stack>
       </CardContent>
     </Card>

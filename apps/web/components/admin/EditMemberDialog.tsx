@@ -1,6 +1,6 @@
 "use client";
 
-import type { EditMemberTarget } from "@/components/admin/types";
+import type { EditMemberTarget } from "@/types/admin";
 import {
   Button,
   Dialog,

@@ -3,10 +3,10 @@ import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import { Server } from 'socket.io';
 import { authRoutes } from './auth.js';
-import { sessionRoutes } from './routes.js';
-import { clubRoutes } from './club.js';
+import { sessionRoutes } from './routes/index.js';
+import { clubRoutes } from './club/routes.js';
 import { tournamentRoutes } from './tournaments.js';
-import { LiveSessionRegistry } from './live.js';
+import { LiveSessionRegistry } from './live/index.js';
 
 const PORT = Number(process.env.PORT ?? 4000);
 const WEB_ORIGIN = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
